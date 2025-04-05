@@ -1,0 +1,91 @@
+name: actcms_spa_flutter
+description: A new Flutter project.
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+version: 1.0.0+2
+
+environment:
+  sdk: ">=2.16.1 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Common
+  nb_utils: ^4.6.20
+  google_fonts: ^3.0.1
+  html: ^0.15.0
+  http: ^0.13.5
+  intl: ^0.17.0
+  cached_network_image: ^3.2.2
+  url_launcher: ^6.1.5
+
+  # Firebase
+  firebase_crashlytics: ^2.8.10
+  firebase_core: ^1.22.0
+  firebase_auth: ^3.8.0
+  firebase_storage: ^10.3.8
+  firebase_remote_config: ^2.0.17
+  cloud_firestore: ^3.4.7
+
+  # Push Notification
+  onesignal_flutter: ^3.4.1
+
+  # State Management
+  mobx: ^2.0.7+5
+  flutter_mobx: ^2.0.6+1
+
+  # Icon
+  flutter_vector_icons: ^1.0.0
+  flutter_svg: ^1.1.5
+
+  # Image
+  image_picker: ^0.8.5+3
+  photo_view: ^0.14.0
+  lottie: ^1.4.2
+
+  # Other
+  country_code_picker: ^2.0.2
+  flutter_custom_tabs: ^1.0.4
+  permission_handler: ^10.0.0
+  paginate_firestore: ^1.0.3+1
+  flutter_html: ^3.0.0-alpha.5
+
+  # Social Login
+  google_sign_in: ^5.4.1
+  the_apple_sign_in: ^1.1.1
+
+  # Payment Gateways
+  razorpay_flutter: ^1.3.2
+  flutterwave_standard: ^1.0.4
+  flutter_stripe: ^4.0.0
+
+  # Map
+  google_maps_flutter: ^2.2.0
+  geolocator: ^9.0.1
+  geocoding: ^2.0.5
+
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.2.0
+  mobx_codegen: ^2.0.7
+  #flutter packages pub run build_runner build --delete-conflicting-outputs
+
+dependency_overrides:
+  modal_bottom_sheet: ^2.0.1
+  firebase_core_platform_interface: 4.5.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/
+    - assets/flag/
+    - assets/images/
+    - assets/icons/
+    - assets/lottie/
+

@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "111657574710",
+    "project_id": "spa-service-88bfa",
+    "storage_bucket": "spa-service-88bfa.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:111657574710:android:066ae8ad0a448921d4d397",
+        "android_client_info": {
+          "package_name": "io.actcms.spa.user"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "111657574710-0ib7u6dasd9q9ur8q6n7oo4isrrri093.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.actcms.spa.user",
+            "certificate_hash": "9032dafa663b9b0d3d68959aee1732046519ee81"
+          }
+        },
+        {
+          "client_id": "111657574710-c37khif3f8juc5iiqd709o1r4i0pcg57.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZYXA8DXACNxdkFs638L_ROOTjzo8FtfI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "111657574710-c37khif3f8juc5iiqd709o1r4i0pcg57.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "111657574710-1k212t351ti8372ms6e4ofodearqka92.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "io.actcms.spa.user"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:111657574710:android:a6825b4ef77973c7d4d397",
+        "android_client_info": {
+          "package_name": "io.actcms.spa.vendor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "111657574710-c37khif3f8juc5iiqd709o1r4i0pcg57.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZYXA8DXACNxdkFs638L_ROOTjzo8FtfI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "111657574710-c37khif3f8juc5iiqd709o1r4i0pcg57.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "111657574710-1k212t351ti8372ms6e4ofodearqka92.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "io.actcms.spa.user"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
