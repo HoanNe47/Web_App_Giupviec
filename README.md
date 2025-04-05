@@ -56,3 +56,42 @@
 
    ```bash
    git clone https://github.com/HoanNe47/Web_App_Giupviec.git
+
+2. Cài đặt cho Flutter
+   flutter clean
+   flutter pub cache clean
+   flutter pub get
+   flutter run
+   flutter vesion 3.22.3
+3. Cài đặt cho Laravel
+   #### Install Dependencies
+
+```zsh
+composer install
+```
+
+#### Configure the Environment
+Create `.env` file:
+```zsh
+cat .env.example > .env
+php artisan key:generate
+```
+#### Migrate and Seed the Database
+```zsh
+php artisan migrate
+php artisan db:seed
+
+php artisan migrate:fresh --seed
+```
+#### Command
+```zsh
+php artisan storage:link
+php artisan cache:clear
+php artisan route:clear
+php artisan config:clear
+php artisan view:clear
+php artisan key:generate
+
+chmod -R 775 bootstrap/cache/
+chmod -R 775 storage/framework/
+chmod -R 775 storage/logs/
