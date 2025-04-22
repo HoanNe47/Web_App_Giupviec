@@ -1,8 +1,10 @@
-import 'package:actcms_spa_flutter/component/image_border_component.dart';
-import 'package:actcms_spa_flutter/model/notification_model.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/image_border_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/notification_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../../utils/common.dart';
 
 class NotificationWidget extends StatelessWidget {
   final NotificationData data;
@@ -18,24 +20,34 @@ class NotificationWidget extends StatelessWidget {
     }
   }*/
 
+  Color _getBGColor(BuildContext context) {
+    if (data.readAt != null) {
+      return context.scaffoldBackgroundColor;
+    } else {
+      return context.cardColor;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: context.width(),
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(8),
-      decoration: boxDecorationDefault(color: data.readAt != null ? context.cardColor : gray.withOpacity(0.0)),
+      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      decoration: boxDecorationDefault(
+        color: _getBGColor(context),
+        borderRadius: radius(0),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           data.profileImage.validate().isNotEmpty
               ? ImageBorder(
                   src: data.profileImage.validate(),
-                  height: 60,
+                  height: 40,
                 )
               : ImageBorder(
                   src: ic_notification_user,
-                  height: 60,
+                  height: 40,
                 ),
           16.width,
           Column(
@@ -44,12 +56,12 @@ class NotificationWidget extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${data.data!.type.validate().split('_').join(' ').capitalizeFirstLetter()}', style: boldTextStyle(size: 14)).expand(),
-                  Text(data.createdAt.validate(), style: secondaryTextStyle(size: 12)),
+                  Text('${data.data!.type.validate().split('_').join(' ').capitalizeFirstLetter()}', style: boldTextStyle(size: 12)).expand(),
+                  Text(data.createdAt.validate(), style: secondaryTextStyle()),
                 ],
               ),
               4.height,
-              Text(data.data!.message!, style: secondaryTextStyle(), maxLines: 3, overflow: TextOverflow.ellipsis),
+              Text(parseHtmlString(data.data!.message.validate()), style: secondaryTextStyle(), maxLines: 3, overflow: TextOverflow.ellipsis),
             ],
           ).expand(),
         ],

@@ -1,6 +1,7 @@
-import 'package:actcms_spa_flutter/model/booking_data_model.dart';
-import 'package:actcms_spa_flutter/model/service_data_model.dart';
-import 'package:actcms_spa_flutter/model/user_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/booking_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/get_my_post_job_list_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/user_data_model.dart';
 import 'package:nb_utils/nb_utils.dart';
 
 import 'service_detail_response.dart';
@@ -17,6 +18,7 @@ class BookingDetailResponse {
   RatingData? customerReview;
   List<TaxData>? taxes;
   List<ServiceProof>? serviceProof;
+  PostJobData? postRequestDetail;
 
   bool get isProviderAndHandymanSame => handymanData.validate().isNotEmpty ? handymanData.validate().first.id.validate() == providerData!.id.validate() : false;
 
@@ -32,6 +34,7 @@ class BookingDetailResponse {
     this.customerReview,
     this.taxes,
     this.serviceProof,
+    this.postRequestDetail,
   });
 
   factory BookingDetailResponse.fromJson(Map<String, dynamic> json) {
@@ -46,6 +49,7 @@ class BookingDetailResponse {
       service: json['service'] != null ? ServiceData.fromJson(json['service']) : null,
       customerReview: json['customer_review'] != null ? RatingData.fromJson(json['customer_review']) : null,
       serviceProof: json['service_proof'] != null ? (json['service_proof'] as List).map((i) => ServiceProof.fromJson(i)).toList() : null,
+      postRequestDetail: json['post_request_detail'] != null ? PostJobData.fromJson(json['post_request_detail']) : null,
     );
   }
 
@@ -80,6 +84,9 @@ class BookingDetailResponse {
     }
     if (this.serviceProof != null) {
       data['service_proof'] = this.serviceProof!.map((v) => v.toJson()).toList();
+    }
+    if (postRequestDetail != null) {
+      data['post_request_detail'] = postRequestDetail?.toJson();
     }
     return data;
   }

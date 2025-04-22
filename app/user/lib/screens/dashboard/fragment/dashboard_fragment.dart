@@ -1,16 +1,20 @@
-import 'package:actcms_spa_flutter/component/loader_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/dashboard_model.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/component/category_component.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/component/customer_ratings_component.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/component/featured_service_list_component.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/component/service_list_component.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/component/slider_and_location_component.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/dashboard_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/component/category_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/component/featured_service_list_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/component/service_list_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/component/slider_and_location_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/shimmer/dashboard_shimmer.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../../component/empty_error_state_widget.dart';
+import '../../../component/loader_widget.dart';
+import '../component/booking_confirmed_component.dart';
+import '../component/new_job_request_component.dart';
 
 class DashboardFragment extends StatefulWidget {
   @override
@@ -25,15 +29,32 @@ class _DashboardFragmentState extends State<DashboardFragment> {
     super.initState();
     init();
 
-    setStatusBarColor(transparentColor, delayInMilliSeconds: 1000);
+    setStatusBarColorChange();
 
     LiveStream().on(LIVESTREAM_UPDATE_DASHBOARD, (p0) {
+      init();
+      appStore.setLoading(true);
+
       setState(() {});
     });
   }
 
   void init() async {
     future = userDashboard(isCurrentLocation: appStore.isCurrentLocation, lat: getDoubleAsync(LATITUDE), long: getDoubleAsync(LONGITUDE));
+    setStatusBarColorChange();
+    setState(() {});
+  }
+
+  Future<void> setStatusBarColorChange() async {
+    setStatusBarColor(
+      statusBarIconBrightness: appStore.isDarkMode
+          ? Brightness.light
+          : await isNetworkAvailable()
+              ? Brightness.light
+              : Brightness.dark,
+      transparentColor,
+      delayInMilliSeconds: 800,
+    );
   }
 
   @override
@@ -50,47 +71,66 @@ class _DashboardFragmentState extends State<DashboardFragment> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () async {
-          init();
-          setState(() {});
-          return await 2.seconds.delay;
-        },
-        child: Stack(
-          children: [
-            FutureBuilder<DashboardResponse>(
-              future: future,
-              builder: (context, snap) {
-                if (snap.hasData) {
-                  return AnimatedScrollView(
-                    physics: AlwaysScrollableScrollPhysics(),
-                    listAnimationType: ListAnimationType.FadeIn,
-                    children: [
-                      SliderLocationComponent(
-                        sliderList: snap.data!.slider.validate(),
-                        notificationReadCount: snap.data!.notificationUnreadCount.validate(),
-                        callback: () async {
-                          init();
-                          await 300.milliseconds.delay;
-                          setState(() {});
-                        },
-                      ),
-                      32.height,
-                      CategoryComponent(categoryList: snap.data!.category.validate()),
-                      24.height,
-                      FeaturedServiceListComponent(serviceList: snap.data!.featuredServices.validate()),
-                      ServiceListComponent(serviceList: snap.data!.service.validate()),
-                      16.height,
-                      CustomerRatingsComponent(reviewData: snap.data!.dashboardCustomerReview.validate()),
-                    ],
-                  );
-                }
-                return snapWidgetHelper(snap, loadingWidget: Offstage());
-              },
-            ),
-            Observer(builder: (context) => LoaderWidget().visible(appStore.isLoading)),
-          ],
-        ),
+      body: Stack(
+        children: [
+          SnapHelperWidget<DashboardResponse>(
+            initialData: cachedDashboardResponse,
+            future: future,
+            errorBuilder: (error) {
+              return NoDataWidget(
+                title: error,
+                imageWidget: ErrorStateWidget(),
+                retryText: language.reload,
+                onRetry: () {
+                  appStore.setLoading(true);
+                  init();
+
+                  setState(() {});
+                },
+              );
+            },
+            loadingWidget: DashboardShimmer(),
+            onSuccess: (snap) {
+              return Observer(builder: (context) {
+                return AnimatedScrollView(
+                  physics: AlwaysScrollableScrollPhysics(),
+                  listAnimationType: ListAnimationType.FadeIn,
+                  fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
+                  onSwipeRefresh: () async {
+                    appStore.setLoading(true);
+
+                    setValue(LAST_APP_CONFIGURATION_SYNCED_TIME, 0);
+                    init();
+                    setState(() {});
+
+                    return await 2.seconds.delay;
+                  },
+                  children: [
+                    SliderLocationComponent(
+                      sliderList: snap.slider.validate(),
+                      featuredList: snap.featuredServices.validate(),
+                      callback: () async {
+                        appStore.setLoading(true);
+
+                        init();
+                        setState(() {});
+                      },
+                    ),
+                    30.height,
+                    PendingBookingComponent(upcomingConfirmedBooking: snap.upcomingData),
+                    CategoryComponent(categoryList: snap.category.validate()),
+                    16.height,
+                    FeaturedServiceListComponent(serviceList: snap.featuredServices.validate()),
+                    ServiceListComponent(serviceList: snap.service.validate()),
+                    16.height,
+                    if (appConfigurationStore.jobRequestStatus && rolesAndPermissionStore.postJobList) NewJobRequestComponent(),
+                  ],
+                );
+              });
+            },
+          ),
+          Observer(builder: (context) => LoaderWidget().visible(appStore.isLoading)),
+        ],
       ),
     );
   }

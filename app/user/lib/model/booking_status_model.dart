@@ -6,6 +6,7 @@ class BookingStatusResponse {
   int? sequence;
   String? createdAt;
   String? updatedAt;
+  bool isSelected = false;
 
   BookingStatusResponse({this.id, this.value, this.label, this.status, this.sequence, this.createdAt, this.updatedAt});
 

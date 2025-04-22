@@ -1,16 +1,20 @@
-import 'package:actcms_spa_flutter/component/background_component.dart';
-import 'package:actcms_spa_flutter/component/loader_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/booking_data_model.dart';
-import 'package:actcms_spa_flutter/model/booking_status_model.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/screens/booking/booking_detail_screen.dart';
-import 'package:actcms_spa_flutter/screens/booking/component/booking_item_component.dart';
-import 'package:actcms_spa_flutter/screens/booking/component/status_dropdown_component.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/loader_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/booking_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/booking/booking_detail_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/booking/component/booking_item_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/booking/shimmer/booking_shimmer.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../../component/empty_error_state_widget.dart';
+import '../../../store/filter_store.dart';
+import '../../booking_filter/booking_filter_screen.dart';
 
 class BookingFragment extends StatefulWidget {
   @override
@@ -18,6 +22,8 @@ class BookingFragment extends StatefulWidget {
 }
 
 class _BookingFragmentState extends State<BookingFragment> {
+  UniqueKey keyForList = UniqueKey();
+
   ScrollController scrollController = ScrollController();
 
   Future<List<BookingData>>? future;
@@ -25,7 +31,6 @@ class _BookingFragmentState extends State<BookingFragment> {
 
   int page = 1;
   bool isLastPage = false;
-  bool isBookingTypeChanged = false;
 
   String selectedValue = BOOKING_TYPE_ALL;
 
@@ -33,6 +38,7 @@ class _BookingFragmentState extends State<BookingFragment> {
   void initState() {
     super.initState();
     init();
+    filterStore = FilterStore();
 
     afterBuildCreated(() {
       if (appStore.isLoggedIn) {
@@ -42,15 +48,31 @@ class _BookingFragmentState extends State<BookingFragment> {
 
     LiveStream().on(LIVESTREAM_UPDATE_BOOKING_LIST, (p0) {
       page = 1;
+      appStore.setLoading(true);
       init();
+      setState(() {});
+    });
+    cachedBookingStatusDropdown.validate().forEach((element) {
+      element.isSelected = false;
     });
   }
 
-  void init() async {
-    future = getBookingList(page, status: selectedValue, bookings: bookings, lastPageCallback: (b) {
-      isLastPage = b;
-    });
-    isBookingTypeChanged = false;
+  void init({String status = ''}) async {
+    future = getBookingList(
+      page,
+      serviceId: filterStore.serviceId.join(","),
+      dateFrom: filterStore.startDate,
+      dateTo: filterStore.endDate,
+      providerId: filterStore.providerId.join(","),
+      handymanId: filterStore.handymanId.join(","),
+      bookingStatus: filterStore.bookingStatus.join(","),
+      paymentStatus: filterStore.paymentStatus.join(","),
+      paymentType: filterStore.paymentType.join(","),
+      bookings: bookings,
+      lastPageCallback: (b) {
+        isLastPage = b;
+      },
+    );
   }
 
   @override
@@ -60,8 +82,9 @@ class _BookingFragmentState extends State<BookingFragment> {
 
   @override
   void dispose() {
+    filterStore.clearFilters();
     LiveStream().dispose(LIVESTREAM_UPDATE_BOOKING_LIST);
-    scrollController.dispose();
+    //scrollController.dispose();
     super.dispose();
   }
 
@@ -72,92 +95,107 @@ class _BookingFragmentState extends State<BookingFragment> {
         language.booking,
         textColor: white,
         showBack: false,
+        textSize: APP_BAR_TEXT_SIZE,
         elevation: 3.0,
         color: context.primaryColor,
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          page = 1;
-          init();
+        actions: [
+          IconButton(
+            icon: ic_filter.iconImage(color: white, size: 20),
+            onPressed: () async {
+              BookingFilterScreen(showHandymanFilter: true).launch(context).then((value) {
+                if (value != null) {
+                  page = 1;
+                  appStore.setLoading(true);
 
-          setState(() {});
-          return await 2.seconds.delay;
-        },
-        child: SizedBox(
-          width: context.width(),
-          height: context.height(),
-          child: Stack(
-            children: [
-              SnapHelperWidget<List<BookingData>>(
-                future: future,
-                loadingWidget: LoaderWidget(),
-                onSuccess: (list) {
-                  if (list.isEmpty) {
-                    return BackgroundComponent(
-                      text: language.lblNoBookingsFound,
-                    );
+                  init();
+
+                  if (bookings.isNotEmpty) {
+                    scrollController.animateTo(0, duration: 1.seconds, curve: Curves.easeOutQuart);
+                  } else {
+                    scrollController = ScrollController();
+                    keyForList = UniqueKey();
                   }
 
-                  return AnimatedListView(
-                    controller: scrollController,
-                    physics: AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.only(bottom: 60, top: 8, right: 16, left: 16),
-                    itemCount: list.length,
-                    shrinkWrap: true,
-                    listAnimationType: ListAnimationType.Slide,
-                    slideConfiguration: SlideConfiguration(verticalOffset: 400),
-                    //disposeScrollController: false,
-                    itemBuilder: (_, index) {
-                      BookingData? data = list[index];
-
-                      return GestureDetector(
-                        onTap: () {
-                          BookingDetailScreen(bookingId: data.id.validate()).launch(context);
-                        },
-                        child: BookingItemComponent(bookingData: data),
-                      );
-                    },
-                    onNextPage: () {
-                      if (!isLastPage) {
-                        page++;
-                        init();
-                        setState(() {});
-                      }
-                    },
-                  ).paddingOnly(left: 0, right: 0, bottom: 0, top: 76);
-                },
-              ),
-              Positioned(
-                left: 16,
-                right: 16,
-                top: 16,
-                child: StatusDropdownComponent(
-                  isValidate: false,
-                  onValueChanged: (BookingStatusResponse value) {
-                    selectedValue = value.value.toString();
-                    isBookingTypeChanged = true;
-
+                  setState(() {});
+                }
+              });
+            },
+          ),
+        ],
+      ),
+      body: SizedBox(
+        width: context.width(),
+        height: context.height(),
+        child: Stack(
+          children: [
+            SnapHelperWidget<List<BookingData>>(
+              initialData: cachedBookingList,
+              future: future,
+              errorBuilder: (error) {
+                return NoDataWidget(
+                  title: error,
+                  imageWidget: ErrorStateWidget(),
+                  retryText: language.reload,
+                  onRetry: () {
                     page = 1;
+                    appStore.setLoading(true);
+
                     init();
-
                     setState(() {});
+                  },
+                );
+              },
+              loadingWidget: BookingShimmer(),
+              onSuccess: (list) {
+                return AnimatedListView(
+                  key: keyForList,
+                  controller: scrollController,
+                  physics: AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.only(bottom: 60, top: 16, right: 16, left: 16),
+                  itemCount: list.length,
+                  shrinkWrap: true,
+                  disposeScrollController: true,
+                  listAnimationType: ListAnimationType.FadeIn,
+                  fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
+                  slideConfiguration: SlideConfiguration(verticalOffset: 400),
+                  emptyWidget: NoDataWidget(
+                    title: language.lblNoBookingsFound,
+                    subTitle: language.noBookingSubTitle,
+                    imageWidget: EmptyStateWidget(),
+                  ),
+                  itemBuilder: (_, index) {
+                    BookingData? data = list[index];
 
-                    if (bookings.isNotEmpty) {
-                      scrollController.animateTo(0, duration: 1.seconds, curve: Curves.easeOutQuart);
-                    } else {
-                      scrollController = ScrollController();
+                    return GestureDetector(
+                      onTap: () {
+                        BookingDetailScreen(bookingId: data.id.validate()).launch(context);
+                      },
+                      child: BookingItemComponent(bookingData: data),
+                    );
+                  },
+                  onNextPage: () {
+                    if (!isLastPage) {
+                      page++;
+                      appStore.setLoading(true);
+
+                      init(status: selectedValue);
+                      setState(() {});
                     }
                   },
-                ),
-              ),
-              Positioned(
-                bottom: isBookingTypeChanged ? 100 : 8,
-                left: 0,
-                right: 0,
-                child: Observer(builder: (_) => LoaderWidget().visible(appStore.isLoading && (page != 1 || isBookingTypeChanged)).center()),
-              ),
-            ],
-          ),
+                  onSwipeRefresh: () async {
+                    page = 1;
+                    appStore.setLoading(true);
+
+                    init(status: selectedValue);
+                    setState(() {});
+
+                    return await 1.seconds.delay;
+                  },
+                );
+              },
+            ),
+            Observer(builder: (_) => LoaderWidget().visible(appStore.isLoading)),
+          ],
         ),
       ),
     );

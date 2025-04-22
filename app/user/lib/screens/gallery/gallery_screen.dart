@@ -1,8 +1,10 @@
-import 'package:actcms_spa_flutter/component/back_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/screens/gallery/gallery_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/back_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/gallery/gallery_component.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../utils/constant.dart';
 
 class GalleryScreen extends StatefulWidget {
   final String serviceName;
@@ -32,11 +34,18 @@ class _GalleryScreenState extends State<GalleryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: appBarWidget("${language.lblGallery} ${'- ${widget.serviceName}'}", textColor: Colors.white, color: context.primaryColor, backWidget: BackWidget()),
+      appBar: appBarWidget(
+        "${language.lblGallery} ${'- ${widget.serviceName}'}",
+        textColor: Colors.white,
+        color: context.primaryColor,
+        backWidget: BackWidget(),
+        textSize: APP_BAR_TEXT_SIZE,
+      ),
       body: AnimatedWrap(
         spacing: 16,
         runSpacing: 16,
-        listAnimationType: ListAnimationType.Scale,
+        listAnimationType: ListAnimationType.FadeIn,
+        fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
         scaleConfiguration: ScaleConfiguration(duration: 300.milliseconds, delay: 50.milliseconds),
         itemCount: widget.attachments.length,
         itemBuilder: (context, i) {

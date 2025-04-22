@@ -1,5 +1,5 @@
-import 'package:actcms_spa_flutter/component/spin_kit_chasing_dots.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/spin_kit_chasing_dots.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
 import 'package:flutter/material.dart';
 
 class LoaderWidget extends StatefulWidget {

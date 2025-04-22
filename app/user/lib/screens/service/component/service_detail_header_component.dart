@@ -1,209 +1,178 @@
-import 'package:actcms_spa_flutter/component/back_widget.dart';
-import 'package:actcms_spa_flutter/component/cached_image_widget.dart';
-import 'package:actcms_spa_flutter/component/price_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/service_data_model.dart';
-import 'package:actcms_spa_flutter/screens/auth/sign_in_screen.dart';
-import 'package:actcms_spa_flutter/screens/gallery/gallery_component.dart';
-import 'package:actcms_spa_flutter/screens/gallery/gallery_screen.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
-import 'package:actcms_spa_flutter/utils/string_extensions.dart';
+import 'dart:async';
+
+import 'package:giup_viec_nha_app_user_flutter/component/cached_image_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/auth/sign_in_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
 class ServiceDetailHeaderComponent extends StatefulWidget {
   final ServiceData serviceDetail;
+  final List<ServiceData>? featuredList;
 
-  const ServiceDetailHeaderComponent({required this.serviceDetail, Key? key}) : super(key: key);
+  const ServiceDetailHeaderComponent({
+    required this.serviceDetail,
+    this.featuredList,
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<ServiceDetailHeaderComponent> createState() => _ServiceDetailHeaderComponentState();
 }
 
 class _ServiceDetailHeaderComponentState extends State<ServiceDetailHeaderComponent> {
+  PageController _pageController = PageController();
+  int _currentPage = 0;
+  Timer? _autoSliderTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoSlider();
+  }
+
+  void _startAutoSlider() {
+    _autoSliderTimer = Timer.periodic(const Duration(seconds: 4), (Timer timer) {
+      if (widget.serviceDetail.attachments.validate().isNotEmpty) {
+        _currentPage = (_currentPage + 1) % widget.serviceDetail.attachments!.length;
+        _pageController.animateToPage(
+          _currentPage,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  Future<void> onTapFavourite() async {
+    if (widget.serviceDetail.isFavourite == 1) {
+      widget.serviceDetail.isFavourite = 0;
+      setState(() {});
+
+      await removeToWishList(serviceId: widget.serviceDetail.id.validate()).then((value) {
+        if (!value) {
+          widget.serviceDetail.isFavourite = 1;
+          setState(() {});
+        }
+      });
+    } else {
+      widget.serviceDetail.isFavourite = 1;
+      setState(() {});
+
+      await addToWishList(serviceId: widget.serviceDetail.id.validate()).then((value) {
+        if (!value) {
+          widget.serviceDetail.isFavourite = 0;
+          setState(() {});
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoSliderTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final attachments = widget.serviceDetail.attachments.validate();
+    final hasMultipleImages = attachments.isNotEmpty && attachments.length > 1;
+
     return SizedBox(
-      height: 475,
+      height: 250,
       width: context.width(),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          if (widget.serviceDetail.attachments.validate().isNotEmpty)
-            SizedBox(
-              height: 400,
-              width: context.width(),
-              child: CachedImageWidget(
-                url: widget.serviceDetail.attachments!.first,
-                fit: BoxFit.cover,
-                height: 400,
+          if (attachments.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+              child: SizedBox(
+                height: 250,
+                width: context.width(),
+                child: hasMultipleImages
+                    ? PageView.builder(
+                        controller: _pageController,
+                        itemCount: attachments.length,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _currentPage = index;
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          return CachedImageWidget(
+                            radius: defaultRadius,
+                            url: attachments[index],
+                            fit: BoxFit.cover,
+                            height: 350,
+                          );
+                        },
+                      )
+                    : CachedImageWidget(
+                        radius: defaultRadius,
+                        url: attachments.first,
+                        fit: BoxFit.cover,
+                        height: 350,
+                      ),
               ),
             ),
-          Positioned(
-            top: context.statusBarHeight + 8,
-            left: 16,
-            child: Container(
-              child: BackWidget(iconColor: context.iconColor),
-              decoration: BoxDecoration(shape: BoxShape.circle, color: context.cardColor.withOpacity(0.7)),
-            ),
-          ),
-          Positioned(
-            top: context.statusBarHeight + 8,
-            child: Container(
-              padding: EdgeInsets.all(10),
-              margin: EdgeInsets.only(right: 8),
-              decoration: boxDecorationWithShadow(boxShape: BoxShape.circle, backgroundColor: context.cardColor),
-              child: widget.serviceDetail.isFavourite == 1 ? ic_fill_heart.iconImage(color: favouriteColor, size: 24) : ic_heart.iconImage(color: unFavouriteColor, size: 24),
-            ).onTap(() async {
-              if (appStore.isLoggedIn) {
-                if (widget.serviceDetail.isFavourite == 1) {
-                  widget.serviceDetail.isFavourite = 0;
-                  setState(() {});
-
-                  await removeToWishList(serviceId: widget.serviceDetail.id.validate()).then((value) {
-                    if (!value) {
-                      widget.serviceDetail.isFavourite = 1;
-                      setState(() {});
-                    }
-                  });
-                } else {
-                  widget.serviceDetail.isFavourite = 1;
-                  setState(() {});
-
-                  await addToWishList(serviceId: widget.serviceDetail.id.validate()).then((value) {
-                    if (!value) {
-                      widget.serviceDetail.isFavourite = 0;
-                      setState(() {});
-                    }
-                  });
-                }
-              } else {
-                push(SignInScreen()).then((value) {
-                  setStatusBarColor(transparentColor, delayInMilliSeconds: 1000);
-                });
-              }
-            }),
-            right: 8,
-          ),
-          Positioned(
-            bottom: 0,
-            left: 16,
-            right: 16,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: List.generate(
-                        widget.serviceDetail.attachments!.take(2).length,
-                            (i) => Container(
-                          decoration: BoxDecoration(border: Border.all(color: white, width: 2), borderRadius: radius()),
-                          child: GalleryComponent(images: widget.serviceDetail.attachments!, index: i, padding: 32, height: 60, width: 60),
-                        ),
-                      ),
-                    ),
-                    16.width,
-                    if (widget.serviceDetail.attachments!.length > 2)
-                      Blur(
-                        borderRadius: radius(),
-                        padding: EdgeInsets.zero,
-                        child: Container(
-                          height: 60,
-                          width: 60,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: white, width: 2),
-                            borderRadius: radius(),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text('+' '${widget.serviceDetail.attachments!.length - 2}', style: boldTextStyle(color: white)),
-                        ),
-                      ).onTap(() {
-                        GalleryScreen(
-                          serviceName: widget.serviceDetail.name.validate(),
-                          attachments: widget.serviceDetail.attachments.validate(),
-                        ).launch(context);
-                      }),
-                  ],
-                ),
-                16.height,
-                Container(
-                  width: context.width(),
-                  padding: EdgeInsets.all(16),
-                  decoration: boxDecorationDefault(
-                    color: context.scaffoldBackgroundColor,
-                    border: Border.all(color: context.dividerColor),
+          if (hasMultipleImages)
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: context.cardColor,
+                    borderRadius: const BorderRadius.all(Radius.circular(15)),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.symmetric( horizontal: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (widget.serviceDetail.subCategoryName.validate().isNotEmpty)
-                        Marquee(
-                          child: Row(
-                            children: [
-                              Text('${widget.serviceDetail.categoryName}', style: boldTextStyle(size: 14, color: textSecondaryColorGlobal)),
-                              Text('  >  ', style: boldTextStyle(size: 14, color: textSecondaryColorGlobal)),
-                              Text('${widget.serviceDetail.subCategoryName}', style: boldTextStyle(size: 14, color: primaryColor)),
-                            ],
-                          ),
-                        )
-                      else
-                        Text('${widget.serviceDetail.categoryName}', style: boldTextStyle(size: 14, color: primaryColor)),
-                      4.height,
-                      Marquee(
-                        child: Text('${widget.serviceDetail.name.validate()}', style: boldTextStyle(size: 20)),
-                        directionMarguee: DirectionMarguee.oneDirection,
-                      ),
-                      4.height,
-                      Row(
-                        children: [
-                          PriceWidget(
-                            price: widget.serviceDetail.price.validate(),
-                            isHourlyService: widget.serviceDetail.isHourlyService,
-                            size: 18,
-                            hourlyTextColor: textSecondaryColorGlobal,
-                            isFreeService: widget.serviceDetail.isFreeService,
-                          ),
-                          4.width,
-                          if (widget.serviceDetail.discount.validate() != 0)
-                            Text(
-                              '(${widget.serviceDetail.discount.validate()}% ${language.lblOff})',
-                              style: boldTextStyle(color: Colors.green),
-                            ),
-                        ],
-                      ),
-                      4.height,
-                      TextIcon(
-                        edgeInsets: EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-                        text: '${language.duration}',
-                        textStyle: secondaryTextStyle(size: 16),
-                        expandedText: true,
-                        suffix: Text(
-                          "${widget.serviceDetail.duration.validate()} ${language.lblHour}",
-                          style: boldTextStyle(color: primaryColor),
-                        ),
-                      ),
-                      TextIcon(
-                        text: '${language.lblRating}',
-                        textStyle: secondaryTextStyle(size: 16),
-                        edgeInsets: EdgeInsets.symmetric(vertical: 4),
-                        expandedText: true,
-                        suffix: Row(
-                          children: [
-                            Image.asset('assets/icons/ic_star_fill.png', height: 18, color: getRatingBarColor(widget.serviceDetail.totalRating.validate().toInt())),
-                            4.width,
-                            Text("${widget.serviceDetail.totalRating.validate().toStringAsFixed(1)}", style: boldTextStyle()),
-                          ],
-                        ),
+                      DotIndicator(
+                        pageController: _pageController,
+                        pages: attachments,
+                        indicatorColor: primaryColor,
+                        unselectedIndicatorColor: lineTextColor,
+                        currentDotSize: 12,
+                        dotSize: 8,
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
+          Positioned(
+            top: 20,
+            right: 28,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: boxDecorationWithShadow(
+                boxShape: BoxShape.circle,
+                backgroundColor: context.cardColor,
+              ),
+              child: widget.serviceDetail.isFavourite == 1 ? ic_fill_heart.iconImage(color: favouriteColor, size: 24) : ic_heart.iconImage(color: unFavouriteColor, size: 24),
+            ).onTap(() async {
+              if (appStore.isLoggedIn) {
+                onTapFavourite();
+              } else {
+                push(SignInScreen(returnExpected: true)).then((value) {
+                  setStatusBarColor(transparentColor, delayInMilliSeconds: 1000);
+                  if (value) {
+                    onTapFavourite();
+                  }
+                });
+              }
+            }, highlightColor: Colors.transparent, splashColor: Colors.transparent, hoverColor: Colors.transparent),
           ),
         ],
       ),

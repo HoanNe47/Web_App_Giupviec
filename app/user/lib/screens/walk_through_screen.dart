@@ -1,7 +1,7 @@
-import 'package:actcms_spa_flutter/screens/dashboard/dashboard_screen.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/dashboard_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
@@ -23,7 +23,7 @@ class _WalkThroughScreenState extends State<WalkThroughScreen> {
     init();
 
     afterBuildCreated(() async {
-      pages.add(WalkThroughModelClass(title: language.lblWelcomeToHandyman, image: walk_Img1, subTitle: language.lblWalkThrough0));
+      // pages.add(WalkThroughModelClass(title: language.lblWelcomeToHandyman, image: walk_Img1, subTitle: language.lblWalkThrough0));
       pages.add(WalkThroughModelClass(title: language.walkTitle1, image: walk_Img2, subTitle: language.walkThrough1));
       pages.add(WalkThroughModelClass(title: language.walkTitle2, image: walk_Img3, subTitle: language.walkThrough2));
       pages.add(WalkThroughModelClass(title: language.walkTitle3, image: walk_Img4, subTitle: language.walkThrough3));
@@ -77,7 +77,7 @@ class _WalkThroughScreenState extends State<WalkThroughScreen> {
                     children: [
                       Image.asset(page.image.validate(), height: context.height() * 0.45),
                       76.height,
-                      Text(page.title.toString(), style: boldTextStyle(size: 24)),
+                      Text(page.title.toString(), style: boldTextStyle(size: 22)),
                       16.height,
                       Text(page.subTitle.toString(), style: secondaryTextStyle()),
                     ],
@@ -94,34 +94,39 @@ class _WalkThroughScreenState extends State<WalkThroughScreen> {
           ),
           Positioned(
             bottom: 16,
-            left: 32,
-            right: 32,
+            left: 16,
+            right: 16,
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                TextButton(
+                  style: ButtonStyle(padding: MaterialStateProperty.all(EdgeInsets.zero)),
+                  onPressed: () async {
+                    await setValue(IS_FIRST_TIME, false);
+                    DashboardScreen().launch(context, isNewTask: true, pageRouteAnimation: PageRouteAnimation.Fade);
+                  },
+                  child: Text(language.lblSkip, style: boldTextStyle(color: primaryColor)),
+                ),
                 DotIndicator(
                   pageController: pageController,
                   pages: pages,
                   indicatorColor: primaryColor,
-                  unselectedIndicatorColor: primaryColor.withOpacity(0.5),
-                  currentBoxShape: BoxShape.rectangle,
-                  boxShape: BoxShape.rectangle,
-                  currentBorderRadius: radius(),
-                  currentDotSize: 26,
-                  currentDotWidth: 6,
+                  unselectedIndicatorColor: primaryColor.withValues(alpha:0.5),
+                  currentBoxShape: BoxShape.circle,
+                  boxShape: BoxShape.circle,
                   dotSize: 6,
                 ),
-                Spacer(),
                 TextButton(
                   style: ButtonStyle(padding: MaterialStateProperty.all(EdgeInsets.zero)),
                   onPressed: () async {
-                    if (currentPosition == 4) {
+                    if (currentPosition == pages.length) {
                       await setValue(IS_FIRST_TIME, false);
                       DashboardScreen().launch(context, isNewTask: true, pageRouteAnimation: PageRouteAnimation.Fade);
                     } else {
                       pageController.nextPage(duration: 500.milliseconds, curve: Curves.linearToEaseOut);
                     }
                   },
-                  child: Text(currentPosition == 4 ? language.getStarted : language.btnNext, style: boldTextStyle(color: primaryColor)),
+                  child: Text(currentPosition == pages.length ? language.getStarted : language.btnNext, style: boldTextStyle(color: primaryColor)),
                 ),
               ],
             ),

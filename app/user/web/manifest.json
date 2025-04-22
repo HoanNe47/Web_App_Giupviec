@@ -1,6 +1,6 @@
 {
-    "name": "actcms_spa_flutter",
-    "short_name": "actcms_spa_flutter",
+    "name": "booking_system_flutter",
+    "short_name": "booking_system_flutter",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

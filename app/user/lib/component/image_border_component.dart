@@ -1,5 +1,5 @@
-import 'package:actcms_spa_flutter/component/cached_image_widget.dart';
-import 'package:actcms_spa_flutter/screens/zoom_image_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/cached_image_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/zoom_image_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
@@ -7,14 +7,16 @@ class ImageBorder extends StatelessWidget {
   final String src;
   final double height;
   final double? width;
+  final Color? borderColor;
+  final double borderWidth;
 
-  ImageBorder({required this.src, required this.height, this.width});
+  ImageBorder({required this.src, required this.height, this.width, this.borderColor, this.borderWidth = 1});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: context.dividerColor, width: 1),
+        border: Border.all(color: borderColor ?? context.dividerColor, width: borderWidth),
         shape: BoxShape.circle,
       ),
       child: CachedImageWidget(

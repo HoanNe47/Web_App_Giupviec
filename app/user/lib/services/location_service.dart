@@ -1,4 +1,5 @@
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:nb_utils/nb_utils.dart';
@@ -14,12 +15,12 @@ Future<Position> getUserLocationPosition() async {
     permission = await Geolocator.requestPermission();
     if (permission == LocationPermission.denied) {
       await Geolocator.openAppSettings();
-      throw 'Location permissions are denied.';
+      throw '${language.lblLocationPermissionDenied}';
     }
   }
 
   if (permission == LocationPermission.deniedForever) {
-    throw 'Location permissions are permanently denied, we cannot request permissions.';
+    throw '${language.lblLocationPermissionDeniedPermanently}';
   }
 
   return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high).then((value) {
@@ -29,7 +30,7 @@ Future<Position> getUserLocationPosition() async {
       if (value != null) {
         return value;
       } else {
-        throw 'Please make sure Location services are enabled.';
+        throw '${language.lblEnableLocation}';
       }
     }).catchError((e) {
       toast(e.toString());
@@ -68,6 +69,7 @@ Future<String> buildFullAddressFromLatLong(double latitude, double longitude) as
   if (!place.country.isEmptyOrNull) address = '$address, ${place.country.validate()}';
 
   setValue(CURRENT_ADDRESS, address);
+  setValue(CITY_NAME, place.locality);
 
   return address;
 }

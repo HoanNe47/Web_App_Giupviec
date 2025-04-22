@@ -1,14 +1,14 @@
-import 'package:actcms_spa_flutter/app_theme.dart';
-import 'package:actcms_spa_flutter/component/loader_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/booking_data_model.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
-import 'package:actcms_spa_flutter/utils/model_keys.dart';
-import 'package:actcms_spa_flutter/utils/string_extensions.dart';
+import 'package:giup_viec_nha_app_user_flutter/app_theme.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/loader_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/booking_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/model_keys.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:nb_utils/nb_utils.dart';
@@ -30,6 +30,7 @@ class _EditBookingServiceDialogState extends State<EditBookingServiceDialog> {
 
   DateTime? selectedDate;
   DateTime? finalDate;
+  DateTime? packageExpiryDate;
   TimeOfDay? pickedTime;
 
   @override
@@ -40,19 +41,27 @@ class _EditBookingServiceDialogState extends State<EditBookingServiceDialog> {
 
   void init() async {
     if (widget.data.date != null) {
-      dateTimeCont.text = formatDate(widget.data.date.validate(), format: DATE_FORMAT_1);
-      prevDateTimeCont.text = formatDate(widget.data.date.validate(), format: DATE_FORMAT_1);
+      dateTimeCont.text = formatBookingDate(widget.data.date.validate(), format: DATE_FORMAT_1);
+      prevDateTimeCont.text = formatBookingDate(widget.data.date.validate(), format: DATE_FORMAT_1);
       selectedDate = DateTime.parse(widget.data.date.validate());
       pickedTime = TimeOfDay.fromDateTime(selectedDate!);
+
+      if (widget.data.bookingPackage != null && widget.data.bookingPackage!.endDate.validate().isNotEmpty) {
+        packageExpiryDate = DateTime.parse(widget.data.bookingPackage!.endDate.validate());
+      }
     }
   }
 
   void selectDateAndTime(BuildContext context) async {
+    if (packageExpiryDate != null && DateTime.now().isAfter(packageExpiryDate!)) {
+      return toast(language.packageIsExpired);
+    }
+
     await showDatePicker(
       context: context,
       initialDate: selectedDate ?? DateTime.now(),
       firstDate: DateTime.now(),
-      lastDate: DateTime(3000),
+      lastDate: packageExpiryDate ?? DateTime(3000),
       locale: Locale(appStore.selectedLanguageCode),
       builder: (_, child) {
         return Theme(
@@ -76,7 +85,7 @@ class _EditBookingServiceDialogState extends State<EditBookingServiceDialog> {
             selectedDate = date;
             pickedTime = time;
 
-            dateTimeCont.text = "${formatDate(selectedDate.toString(), format: DATE_FORMAT_3)} ${pickedTime!.format(context).toString()}";
+            dateTimeCont.text = "${formatDate(selectedDate.toString())} ${pickedTime!.format(context).toString()}";
           }
         }).catchError((e) {
           toast(e.toString());
@@ -86,13 +95,18 @@ class _EditBookingServiceDialogState extends State<EditBookingServiceDialog> {
   }
 
   void _handleSubmitClick() async {
-    if (prevDateTimeCont.text != dateTimeCont.text) {
+    if (prevDateTimeCont.text == dateTimeCont.text) {
+      finish(context);
+    } else if (dateTimeCont.text.isEmpty) {
+      toast(language.lblSelectDate);
+    } else {
       appStore.setLoading(true);
       finalDate = DateTime(selectedDate!.year, selectedDate!.month, selectedDate!.day, pickedTime!.hour, pickedTime!.minute);
       Map request = {
         CommonKeys.id: widget.data.id.validate(),
         CommonKeys.date: finalDate.toString(),
         CommonKeys.status: widget.data.status.validate(),
+        BookingUpdateKeys.paymentStatus: widget.data.isAdvancePaymentDone ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : widget.data.paymentStatus.validate(),
       };
 
       log(request);
@@ -106,8 +120,6 @@ class _EditBookingServiceDialogState extends State<EditBookingServiceDialog> {
       });
 
       appStore.setLoading(false);
-    } else {
-      toast(language.lblSelectDate);
     }
   }
 
@@ -139,14 +151,14 @@ class _EditBookingServiceDialogState extends State<EditBookingServiceDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${language.lblDateAndTime} ', style: boldTextStyle()),
+                    Text('${language.lblDateAndTime} ', style: secondaryTextStyle()),
                     16.height,
                     AppTextField(
                       textFieldType: TextFieldType.OTHER,
                       controller: dateTimeCont,
                       isValidationRequired: true,
                       validator: (value) {
-                        if (value!.isEmpty) return language.lblRequiredValidation;
+                        if (value!.isEmpty) return language.requiredText;
                         return null;
                       },
                       readOnly: true,
@@ -156,7 +168,7 @@ class _EditBookingServiceDialogState extends State<EditBookingServiceDialog> {
                       decoration: inputDecoration(context, prefixIcon: ic_calendar.iconImage(size: 10).paddingAll(14)).copyWith(
                         fillColor: context.cardColor,
                         filled: true,
-                        hintText: language.lblEnterDateAndTime,
+                        hintText: language.chooseDateAndTime,
                         hintStyle: secondaryTextStyle(),
                       ),
                     ),

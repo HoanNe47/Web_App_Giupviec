@@ -14,7 +14,7 @@ class AppCommonDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: EdgeInsets.fromLTRB(16, 4, 4, 8),
+            padding: EdgeInsets.fromLTRB(16, 12, 8, 12),
             width: context.width(),
             decoration: boxDecorationDefault(
               color: context.primaryColor,
@@ -27,7 +27,6 @@ class AppCommonDialog extends StatelessWidget {
               ],
             ),
           ),
-          16.height,
           child,
         ],
       ),

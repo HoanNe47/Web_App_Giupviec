@@ -1,9 +1,10 @@
 import 'package:async/async.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/booking_status_model.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/booking_status_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
@@ -12,7 +13,12 @@ class StatusDropdownComponent extends StatefulWidget {
   final Function(BookingStatusResponse value) onValueChanged;
   final bool isValidate;
 
-  StatusDropdownComponent({this.defaultValue, required this.onValueChanged, required this.isValidate});
+  StatusDropdownComponent({
+    this.defaultValue,
+    required this.onValueChanged,
+    required this.isValidate,
+    Key? key,
+  }) : super(key: key);
 
   @override
   _StatusDropdownComponentState createState() => _StatusDropdownComponentState();
@@ -42,7 +48,8 @@ class _StatusDropdownComponentState extends State<StatusDropdownComponent> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<BookingStatusResponse>>(
-      future: _asyncMemoizer.runOnce(() => bookingStatus()),
+      initialData: cachedBookingStatusDropdown,
+      future: _asyncMemoizer.runOnce(() => bookingStatus(list: [])),
       builder: (context, snap) {
         if (snap.hasData) {
           if (!snap.data!.any((element) => element.id == 0)) {
@@ -57,7 +64,7 @@ class _StatusDropdownComponentState extends State<StatusDropdownComponent> {
             isExpanded: true,
             validator: widget.isValidate
                 ? (c) {
-                    if (c == null) return language.lblRequiredValidation;
+                    if (c == null) return language.requiredText;
                     return null;
                   }
                 : null,
@@ -70,7 +77,7 @@ class _StatusDropdownComponentState extends State<StatusDropdownComponent> {
                 BookingStatusResponse data = snap.data![index];
                 return DropdownMenuItem(
                   value: data,
-                  child: Text('${data.label.validate()}', style: primaryTextStyle()),
+                  child: Text(data.value.validate().toBookingStatus(), style: primaryTextStyle()),
                 );
               },
             ),

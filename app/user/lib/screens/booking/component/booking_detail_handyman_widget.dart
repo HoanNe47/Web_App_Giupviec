@@ -1,17 +1,16 @@
-import 'package:actcms_spa_flutter/component/add_review_dialog.dart';
-import 'package:actcms_spa_flutter/component/disabled_rating_bar_widget.dart';
-import 'package:actcms_spa_flutter/component/image_border_component.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/booking_data_model.dart';
-import 'package:actcms_spa_flutter/model/service_data_model.dart';
-import 'package:actcms_spa_flutter/model/service_detail_response.dart';
-import 'package:actcms_spa_flutter/model/user_data_model.dart';
-import 'package:actcms_spa_flutter/screens/chat/user_chat_screen.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
-import 'package:actcms_spa_flutter/utils/model_keys.dart';
-import 'package:actcms_spa_flutter/utils/string_extensions.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/add_review_dialog.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/image_border_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/booking_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_detail_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/user_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/chat/user_chat_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/model_keys.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,6 +29,8 @@ class BookingDetailHandymanWidget extends StatefulWidget {
 
 class BookingDetailHandymanWidgetState extends State<BookingDetailHandymanWidget> {
   int? flag;
+
+  bool isChattingAllow = false;
 
   @override
   void initState() {
@@ -58,31 +59,57 @@ class BookingDetailHandymanWidgetState extends State<BookingDetailHandymanWidget
             children: [
               ImageBorder(
                 src: widget.handymanData.profileImage.validate(),
-                height: 70,
+                height: 60,
               ),
               16.width,
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(widget.handymanData.displayName.validate(), style: boldTextStyle()).flexible(),
                       16.width,
-                      ic_info.iconImage(size: 20),
+                      GestureDetector(
+                        onTap: () {
+                          String phoneNumber = "";
+                          if (widget.handymanData.contactNumber.validate().contains('+')) {
+                            phoneNumber = "${widget.handymanData.contactNumber.validate().replaceAll('-', '')}";
+                          } else {
+                            phoneNumber = "+${widget.handymanData.contactNumber.validate().replaceAll('-', '')}";
+                          }
+                          launchUrl(Uri.parse('${getSocialMediaLink(LinkProvider.WHATSAPP)}$phoneNumber'), mode: LaunchMode.externalApplication);
+                        },
+                        child: Image.asset(ic_whatsapp, height: 22),
+                      ).visible(widget.handymanData.contactNumber.validate().isNotEmpty && widget.bookingDetail.canCustomerContact),
                     ],
                   ),
                   4.height,
-                  DisabledRatingBarWidget(rating: widget.handymanData.handymanRating.validate().toDouble()),
+                  Row(
+                    children: [
+                      Image.asset(
+                        ic_star_fill,
+                        height: 14,
+                        fit: BoxFit.fitWidth,
+                        color: getRatingBarColor(widget.handymanData.handymanRating.validate().toInt()),
+                      ),
+                      4.width,
+                      Text(
+                        widget.handymanData.handymanRating.validate().toStringAsFixed(1).toString(),
+                        style: boldTextStyle(color: textSecondaryColor, size: 14),
+                      ),
+                    ],
+                  ),
                 ],
               ).expand()
             ],
           ),
           8.height,
-          Divider(),
+          Divider(color: context.dividerColor),
           8.height,
           Row(
             children: [
-              if (widget.handymanData.contactNumber.validate().isNotEmpty)
+              if (widget.handymanData.contactNumber.validate().isNotEmpty && widget.bookingDetail.canCustomerContact)
                 AppButton(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -98,48 +125,37 @@ class BookingDetailHandymanWidgetState extends State<BookingDetailHandymanWidget
                   onTap: () {
                     launchCall(widget.handymanData.contactNumber.validate());
                   },
-                ).expand(),
-              16.width,
+                ).paddingRight(16).expand(),
               AppButton(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ic_chat.iconImage(size: 18),
                     8.width,
-                    Text(language.lblchat, style: boldTextStyle()),
+                    Text(language.lblChat, style: boldTextStyle()),
                   ],
                 ).fit(),
                 width: context.width(),
                 elevation: 0,
                 color: context.scaffoldBackgroundColor,
                 onTap: () async {
-                  await userService.getUser(email: widget.handymanData.email.validate()).then((value) {
-                    widget.handymanData.uid = value.uid;
-                  }).catchError((e) {
-                    log(e.toString());
-                  });
-                  UserChatScreen(receiverUser: widget.handymanData).launch(context);
+                  toast(language.pleaseWaitWhileWeLoadChatDetails);
+                  UserData? user = await userService.getUserNull(email: widget.handymanData.email.validate());
+                  if (user != null) {
+                    Fluttertoast.cancel();
+                    isChattingAllow = widget.bookingDetail.status == BookingStatusKeys.complete || widget.bookingDetail.status == BookingStatusKeys.cancelled;
+                    UserChatScreen(receiverUser: user, isChattingAllow: isChattingAllow).launch(context);
+                  } else {
+                    Fluttertoast.cancel();
+                    toast("${widget.handymanData.firstName} ${language.isNotAvailableForChat}");
+                  }
                 },
               ).expand(),
               16.width,
-              AppButton(
-                child: Image.asset(ic_whatsapp, height: 18),
-                elevation: 0,
-                color: context.scaffoldBackgroundColor,
-                onTap: () async {
-                  String phoneNumber = "";
-                  if (widget.handymanData.contactNumber.validate().contains('+')) {
-                    phoneNumber = "${widget.handymanData.contactNumber.validate().replaceAll('-', '')}";
-                  } else {
-                    phoneNumber = "+${widget.handymanData.contactNumber.validate().replaceAll('-', '')}";
-                  }
-                  launchUrl(Uri.parse('${getSocialMediaLink(LinkProvider.WHATSAPP)}$phoneNumber'), mode: LaunchMode.externalApplication);
-                },
-              ),
             ],
           ),
           8.height,
-          if (widget.bookingDetail.status == BookingStatusKeys.complete && widget.bookingDetail.paymentStatus == "paid")
+          if (widget.bookingDetail.status == BookingStatusKeys.complete)
             TextButton(
               onPressed: () {
                 _handleHandymanRatingClick();

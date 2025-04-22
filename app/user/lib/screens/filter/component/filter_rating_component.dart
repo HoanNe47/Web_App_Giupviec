@@ -1,5 +1,6 @@
-import 'package:actcms_spa_flutter/component/disabled_rating_bar_widget.dart';
-import 'package:actcms_spa_flutter/component/selected_item_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/disabled_rating_bar_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/selected_item_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
@@ -9,7 +10,10 @@ class FilterRatingComponent extends StatefulWidget {
 }
 
 class _FilterRatingComponentState extends State<FilterRatingComponent> {
-  List<double> selectedRatingList = [];
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +29,8 @@ class _FilterRatingComponentState extends State<FilterRatingComponent> {
             itemCount: 5,
             reverse: true,
             itemBuilder: (context, index) {
-              bool isSelected = selectedRatingList.contains(index + 1);
+              bool isSelected = filterStore.ratingId.contains(index + 1);
+
               return Padding(
                 padding: EdgeInsets.fromLTRB(0, 16, 0, 16),
                 child: Row(
@@ -33,20 +38,17 @@ class _FilterRatingComponentState extends State<FilterRatingComponent> {
                     SelectedItemWidget(isSelected: isSelected),
                     8.width,
                     DisabledRatingBarWidget(rating: (index + 1).toDouble()).expand(),
-                    Text('${(index + 1).toDouble()}', style: primaryTextStyle(size: 14)),
+                    Text('${(index + 1)}', style: primaryTextStyle(size: 14)),
                   ],
                 ),
               ).onTap(() {
-                double selectedIndex = index + 1;
+                int selectedIndex = index + 1;
 
-                if (!selectedRatingList.contains(selectedIndex)) {
-                  selectedRatingList.add(selectedIndex);
+                if (!filterStore.ratingId.contains(selectedIndex)) {
+                  filterStore.ratingId.add(selectedIndex);
                 } else {
-                  selectedRatingList.remove(selectedIndex);
+                  filterStore.ratingId.removeWhere((element) => element == selectedIndex);
                 }
-
-                log("List ${selectedRatingList.toString()}");
-
                 setState(() {});
               });
             },

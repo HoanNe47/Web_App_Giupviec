@@ -1,5 +1,5 @@
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
@@ -8,8 +8,9 @@ class ViewAllLabel extends StatelessWidget {
   final List? list;
   final VoidCallback? onTap;
   final int? labelSize;
+  final TextStyle? trailingTextStyle;
 
-  ViewAllLabel({required this.label, this.onTap, this.labelSize, this.list});
+  ViewAllLabel({required this.label, this.onTap, this.labelSize, this.list, this.trailingTextStyle});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +24,7 @@ class ViewAllLabel extends StatelessWidget {
                   onTap?.call();
                 }
               : null,
-          child: (list == null ? true : isViewAllVisible(list!)) ? Text(language.lblViewAll, style: secondaryTextStyle()) : SizedBox(),
+          child: (list == null ? true : isViewAllVisible(list!)) ? Text(language.lblViewAll, style: trailingTextStyle ?? secondaryTextStyle()) : SizedBox(),
         )
       ],
     );

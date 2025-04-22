@@ -1,38 +1,36 @@
-import 'dart:convert';
+import 'dart:io';
 
-import 'package:actcms_spa_flutter/component/app_common_dialog.dart';
-import 'package:actcms_spa_flutter/component/cached_image_widget.dart';
-import 'package:actcms_spa_flutter/component/html_widget.dart';
-import 'package:actcms_spa_flutter/component/location_service_dialog.dart';
-import 'package:actcms_spa_flutter/component/new_update_dialog.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/remote_config_data_model.dart';
-import 'package:actcms_spa_flutter/model/service_data_model.dart';
-import 'package:actcms_spa_flutter/model/service_detail_response.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/screens/auth/sign_in_screen.dart';
-import 'package:actcms_spa_flutter/services/location_service.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/configs.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
-import 'package:actcms_spa_flutter/utils/model_keys.dart';
-import 'package:actcms_spa_flutter/utils/permissions.dart';
-import 'package:actcms_spa_flutter/utils/string_extensions.dart';
-import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/app_common_dialog.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/html_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/location_service_dialog.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/new_update_dialog.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/auth/sign_in_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/services/location_service.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/permissions.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/string_extensions.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_custom_tabs/flutter_custom_tabs.dart' as custom_tabs;
-import 'package:flutter_custom_tabs/flutter_custom_tabs.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:html/parser.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:nb_utils/nb_utils.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../component/cached_image_widget.dart';
+import 'app_configuration.dart';
 import 'constant.dart';
 
-bool get isIqonicProduct => currentPackageName == appPackageName;
+Future<bool> get isIqonicProduct async => await getPackageName() == appPackageName;
 
 bool get isUserTypeHandyman => appStore.userType == USER_TYPE_HANDYMAN;
 
@@ -50,10 +48,20 @@ bool get isLoginTypeOTP => appStore.loginType == LOGIN_TYPE_OTP;
 
 ThemeMode get appThemeMode => appStore.isDarkMode ? ThemeMode.dark : ThemeMode.light;
 
+bool get isRTL => RTL_LanguageS.contains(appStore.selectedLanguageCode);
+
 Future<void> commonLaunchUrl(String address, {LaunchMode launchMode = LaunchMode.inAppWebView}) async {
   await launchUrl(Uri.parse(address), mode: launchMode).catchError((e) {
-    toast('Invalid URL: $address');
+    toast('${language.invalidURL}: $address');
+
+    throw e;
   });
+}
+
+void viewFiles(String url) {
+  if (url.isNotEmpty) {
+    commonLaunchUrl(url, launchMode: LaunchMode.externalApplication);
+  }
 }
 
 void launchCall(String? url) {
@@ -67,7 +75,7 @@ void launchCall(String? url) {
 
 void launchMap(String? url) {
   if (url.validate().isNotEmpty) {
-    commonLaunchUrl(GOOGLE_MAP_PREFIX + url!, launchMode: LaunchMode.externalApplication);
+    commonLaunchUrl(GOOGLE_MAP_PREFIX + Uri.encodeFull(url!), launchMode: LaunchMode.externalApplication);
   }
 }
 
@@ -94,21 +102,18 @@ void checkIfLink(BuildContext context, String value, {String? title}) {
 
 void launchUrlCustomTab(String? url) {
   if (url.validate().isNotEmpty) {
-    custom_tabs.launch(
-      url!,
-      customTabsOption: custom_tabs.CustomTabsOption(
-        enableDefaultShare: true,
-        enableInstantApps: true,
-        enableUrlBarHiding: true,
-        showPageTitle: true,
-        toolbarColor: primaryColor,
+    custom_tabs.launchUrl(
+      Uri.parse(url!),
+      customTabsOptions: custom_tabs.CustomTabsOptions(
+        showTitle: true,
+        colorSchemes: custom_tabs.CustomTabsColorSchemes.defaults(toolbarColor: primaryColor),
       ),
-      safariVCOption: custom_tabs.SafariViewControllerOption(
+      safariVCOptions: custom_tabs.SafariViewControllerOptions(
         preferredBarTintColor: primaryColor,
         preferredControlTintColor: Colors.white,
         barCollapsingEnabled: true,
         entersReaderIfAvailable: true,
-        dismissButtonStyle: SafariViewControllerDismissButtonStyle.close,
+        dismissButtonStyle: custom_tabs.SafariViewControllerDismissButtonStyle.close,
       ),
     );
   }
@@ -119,29 +124,17 @@ List<LanguageDataModel> languageList() {
     LanguageDataModel(id: 1, name: 'Tiếng Việt', languageCode: 'vi', fullLanguageCode: 'vi-VN', flag: 'assets/flag/ic_vi.png'),
     LanguageDataModel(id: 2, name: 'English', languageCode: 'en', fullLanguageCode: 'en-US', flag: 'assets/flag/ic_us.png'),
   ];
-  /*//TODO Enable after adding more language on server
-  if (false) {
-    Iterable it = jsonDecode(getStringAsync(SERVER_LANGUAGES));
-    var res = it.map((e) => LanguageOption.fromJson(e)).toList();
-
-    localeLanguageList.clear();
-
-    res.forEach((element) {
-      localeLanguageList.add(LanguageDataModel(languageCode: element.id, flag: element.flagImage, name: element.title));
-    });
-
-    return localeLanguageList;
-  } else {
-
-  }*/
 }
 
-InputDecoration inputDecoration(BuildContext context, {Widget? prefixIcon, String? labelText, double? borderRadius}) {
+InputDecoration inputDecoration(BuildContext context, {Widget? prefixIcon, String? labelText, String? hintText, double? borderRadius, bool? counter, String? counterText,  Color? fillColor}) {
   return InputDecoration(
     contentPadding: EdgeInsets.only(left: 12, bottom: 10, top: 10, right: 10),
     labelText: labelText,
     labelStyle: secondaryTextStyle(),
+    hintText: hintText,
+    hintStyle: secondaryTextStyle(),
     alignLabelWithHint: true,
+    counterText: counter == false ? "" : counterText,
     prefixIcon: prefixIcon,
     enabledBorder: OutlineInputBorder(
       borderRadius: radius(borderRadius ?? defaultRadius),
@@ -156,13 +149,21 @@ InputDecoration inputDecoration(BuildContext context, {Widget? prefixIcon, Strin
       borderSide: BorderSide(color: Colors.red, width: 1.0),
     ),
     errorMaxLines: 2,
+    border: OutlineInputBorder(
+      borderRadius: radius(borderRadius ?? defaultRadius),
+      borderSide: BorderSide(color: Colors.transparent, width: 0.0),
+    ),
+    disabledBorder: OutlineInputBorder(
+      borderRadius: radius(borderRadius ?? defaultRadius),
+      borderSide: BorderSide(color: Colors.transparent, width: 0.0),
+    ),
     errorStyle: primaryTextStyle(color: Colors.red, size: 12),
     focusedBorder: OutlineInputBorder(
       borderRadius: radius(borderRadius ?? defaultRadius),
       borderSide: BorderSide(color: primaryColor, width: 0.0),
     ),
     filled: true,
-    fillColor: context.cardColor,
+    fillColor: fillColor ?? context.cardColor,
   );
 }
 
@@ -170,96 +171,129 @@ String parseHtmlString(String? htmlString) {
   return parse(parse(htmlString).body!.text).documentElement!.text;
 }
 
-String formatDate(String? dateTime, {String format = DATE_FORMAT_1, bool isFromMicrosecondsSinceEpoch = false}) {
-  if (isFromMicrosecondsSinceEpoch) {
-    return DateFormat(format, appStore.selectedLanguageCode).format(DateTime.fromMicrosecondsSinceEpoch(dateTime.validate().toInt() * 1000));
+String formatDate(String? dateTime, {bool isFromMicrosecondsSinceEpoch = false, bool isLanguageNeeded = true, bool isTime = false, bool showDateWithTime = false}) {
+  final languageCode = isLanguageNeeded ? appStore.selectedLanguageCode : null;
+  final parsedDateTime = isFromMicrosecondsSinceEpoch ? DateTime.fromMicrosecondsSinceEpoch(dateTime.validate().toInt() * 1000) : DateTime.parse(dateTime.validate());
+  if (isTime) {
+    return DateFormat('${getStringAsync(TIME_FORMAT)}', languageCode).format(parsedDateTime);
   } else {
-    return DateFormat(format, appStore.selectedLanguageCode).format(DateTime.parse(dateTime.validate()));
+    if (getStringAsync(DATE_FORMAT).validate().contains('dS')) {
+      int day = parsedDateTime.day;
+      if (DateFormat('${getStringAsync(DATE_FORMAT)}', languageCode).format(parsedDateTime).contains('$day')) {
+        return DateFormat('${getStringAsync(DATE_FORMAT).replaceAll('S', '')}${showDateWithTime ? ' ${getStringAsync(TIME_FORMAT)}' : ''}', languageCode)
+            .format(parsedDateTime)
+            .replaceFirst('$day', '${addOrdinalSuffix(day)}');
+      }
+    }
+    return DateFormat('${getStringAsync(DATE_FORMAT)}${showDateWithTime ? ' ${getStringAsync(TIME_FORMAT)}' : ''}', languageCode).format(parsedDateTime);
   }
 }
 
-Future<void> saveOneSignalPlayerId() async {
-  await OneSignal.shared.getDeviceState().then((value) async {
-    if (value!.userId.validate().isNotEmpty) await setValue(PLAYERID, value.userId.validate());
-    log('notification player id ' + value.toString());
-  }).catchError((e) {
-    toast(e.toString());
-  });
+String formatBookingDate(String? dateTime, {String format = DATE_FORMAT_1, bool isFromMicrosecondsSinceEpoch = false, bool isLanguageNeeded = true, bool isTime = false, bool showDateWithTime = false}) {
+  final languageCode = isLanguageNeeded ? appStore.selectedLanguageCode : null;
+  final parsedDateTime = isFromMicrosecondsSinceEpoch ? DateTime.fromMicrosecondsSinceEpoch(dateTime.validate().toInt() * 1000) : DateTime.parse(dateTime.validate());
+
+  return DateFormat(format, languageCode).format(parsedDateTime);
 }
 
-bool get isRTL => RTL_LanguageS.contains(appStore.selectedLanguageCode);
+String getSlotWithDate({required String date, required String slotTime}) {
+  DateTime originalDateTime = DateFormat('yyyy-MM-dd HH:mm:ss').parse(date);
+  DateTime newTime = DateFormat('HH:mm:ss').parse(slotTime);
+  DateTime newDateTime = DateTime(originalDateTime.year, originalDateTime.month, originalDateTime.day, newTime.hour, newTime.minute, newTime.second);
+  return DateFormat('yyyy-MM-dd HH:mm:ss').format(newDateTime);
+}
 
-Widget noDataFound(BuildContext context) {
-  return Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      CachedImageWidget(url: notDataFoundImg, height: 200),
-      8.height,
-      Text(language.lblNoData, style: boldTextStyle()),
-    ],
+String getConfirmBookingDateFormat({required String date}) {
+  DateTime originalDateTime = DateFormat('yyyy-MM-dd HH:mm:ss').parse(date);
+  return DateFormat("d MMMM, yyyy, 'at' h:mm a").format(originalDateTime);}
+
+String getDateFormat(String phpFormat) {
+  final formatMapping = {
+    'Y': 'yyyy',
+    'm': 'MM',
+    'd': 'dd',
+    'j': 'd',
+    'S': 'S',
+    'M': 'MMM',
+    'F': 'MMMM',
+    'l': 'EEEE',
+    'D': 'EEE',
+    'H': 'HH',
+    'i': 'mm',
+    's': 'ss',
+    'A': 'a',
+    'T': 'z',
+    'v': 'S',
+    'U': 'y-MM-ddTHH:mm:ssZ',
+    'u': 'y-MM-ddTHH:mm:ss.SSSZ',
+    'G': 'H',
+    'B': 'EEE, d MMM y HH:mm:ss Z',
+  };
+
+  String dartFormat = phpFormat.replaceAllMapped(
+    RegExp('[YmjdSFMlDHisaTvGuB]'),
+    (match) => formatMapping[match.group(0)] ?? match.group(0).validate(),
   );
+
+  dartFormat = dartFormat.replaceAllMapped(
+    RegExp(r"\\(.)"),
+    (match) => match.group(1) ?? '',
+  );
+
+  return dartFormat;
 }
 
-num calculateTotalAmount({
-  required num servicePrice,
-  required int qty,
-  required num? serviceDiscountPercent,
-  CouponData? couponData,
-  ServiceData? detail,
-  required List<TaxData>? taxes,
-}) {
-  double totalAmount = 0.0;
-  double discountPrice = 0.0;
-  double taxAmount = 0.0;
-  double couponDiscountAmount = 0.0;
-
-  taxes.validate().forEach((element) {
-    if (element.type == SERVICE_TYPE_PERCENT) {
-      element.totalCalculatedValue = ((servicePrice * qty) * element.value.validate()) / 100;
-    } else {
-      element.totalCalculatedValue = element.value.validate();
-    }
-    taxAmount += element.totalCalculatedValue.validate().toDouble();
-  });
-
-  if (serviceDiscountPercent.validate() != 0) {
-    totalAmount = (servicePrice * qty) - (((servicePrice * qty) * (serviceDiscountPercent!)) / 100);
-    discountPrice = servicePrice * qty - totalAmount;
-
-    totalAmount = (servicePrice * qty) - discountPrice - couponDiscountAmount + taxAmount;
-  } else {
-    totalAmount = (servicePrice * qty) - couponDiscountAmount + taxAmount;
+String addOrdinalSuffix(int day) {
+  if (day >= 11 && day <= 13) {
+    return '${day}th';
   }
-
-  if (couponData != null) {
-    if (couponData.discountType.validate() == SERVICE_TYPE_FIXED) {
-      totalAmount = totalAmount - couponData.discount.validate();
-      couponDiscountAmount = couponData.discount.validate().toDouble();
-    } else {
-      totalAmount = totalAmount - ((totalAmount * couponData.discount.validate()) / 100);
-      num calValue = (totalAmount * couponData.discount.validate());
-      couponDiscountAmount = calValue / 100;
-    }
-    if (detail != null) {
-      detail.couponCode = couponData.code.validate().toString();
-      detail.appliedCouponData = couponData;
-      detail.couponDiscountAmount = couponDiscountAmount.validate();
-    }
+  switch (day % 10) {
+    case 1:
+      return '${day}st';
+    case 2:
+      return '${day}nd';
+    case 3:
+      return '${day}rd';
+    default:
+      return '${day}th';
   }
+}
 
-  if (detail != null) {
-    detail.totalAmount = totalAmount.toStringAsFixed(DECIMAL_POINT).validate().toDouble();
-    detail.qty = qty.validate();
-    detail.discountPrice = discountPrice.toStringAsFixed(DECIMAL_POINT).validate().toDouble();
-    detail.taxAmount = taxAmount.toStringAsFixed(DECIMAL_POINT).validate().toDouble();
+String getDisplayTimeFormat(String phpFormat) {
+  switch (phpFormat) {
+    case 'H:i':
+      return 'HH:mm';
+    case 'H:i:s':
+      return 'HH:mm:ss';
+    case 'g:i A':
+      return 'h:mm a';
+    case 'H:i:s T':
+      return 'HH:mm:ss z';
+    case 'H:i:s.v':
+      return 'HH:mm:ss.S';
+    case 'U':
+      return 'HH:mm:ssZ';
+    case 'u':
+      return 'HH:mm:ss.SSSZ';
+    case 'G.i':
+      return 'H.mm';
+    case '@BMT':
+      return 'HH:mm:ss Z';
+    default:
+      return DISPLAY_TIME_FORMAT; // Return the same format if not found in the mapping
   }
-  return totalAmount;
+}
+
+bool containsTime(String dateString) {
+  RegExp timeRegex = RegExp(r'\b\d{1,2}:\d{1,2}(:\d{1,2})?\b');
+
+  return timeRegex.hasMatch(dateString);
 }
 
 Future<bool> addToWishList({required int serviceId}) async {
   Map req = {"id": "", "service_id": serviceId, "user_id": appStore.userId};
   return await addWishList(req).then((res) {
-    toast(res.message!);
+    toast(language.serviceAddedToFavourite);
     return true;
   }).catchError((error) {
     toast(error.toString());
@@ -271,7 +305,7 @@ Future<bool> removeToWishList({required int serviceId}) async {
   Map req = {"user_id": appStore.userId, 'service_id': serviceId};
 
   return await removeWishList(req).then((res) {
-    toast(res.message!);
+    toast(language.serviceRemovedFromFavourite);
     return true;
   }).catchError((error) {
     toast(error.toString());
@@ -279,109 +313,88 @@ Future<bool> removeToWishList({required int serviceId}) async {
   });
 }
 
-Widget commonLocationWidget({required BuildContext context, required Function() onTap, Color? color}) {
-  return Observer(
-    builder: (_) => IconButton(
-      icon: ic_active_location.iconImage(size: 24, color: appStore.isCurrentLocation ? color ?? Colors.white : color ?? Colors.white),
-      visualDensity: VisualDensity.compact,
-      onPressed: () {
-        Permissions.cameraFilesAndLocationPermissionsGranted().then((value) async {
-          await setValue(PERMISSION_STATUS, value);
+void locationWiseService(BuildContext context, VoidCallback onTap) async {
+  Permissions.cameraFilesAndLocationPermissionsGranted().then((value) async {
+    await setValue(PERMISSION_STATUS, value);
 
-          if (value) {
-            bool? res = await showInDialog(
-              context,
-              contentPadding: EdgeInsets.zero,
-              builder: (p0) {
-                return AppCommonDialog(
-                  title: language.lblAlert,
-                  child: LocationServiceDialog(),
-                );
-              },
-            );
+    if (value) {
+      bool? res = await showInDialog(
+        context,
+        contentPadding: EdgeInsets.zero,
+        builder: (p0) {
+          return AppCommonDialog(
+            title: language.lblAlert,
+            child: LocationServiceDialog(),
+          );
+        },
+      );
 
-            if (res ?? false) {
-              appStore.setLoading(true);
+      if (res ?? false) {
+        appStore.setLoading(true);
 
-              await setValue(PERMISSION_STATUS, value);
-              await getUserLocation().then((value) async {
-                await appStore.setCurrentLocation(!appStore.isCurrentLocation);
-              }).catchError((e) {
-                appStore.setLoading(false);
-                toast(e.toString(), print: true);
-              });
-
-              onTap.call();
-            }
-          }
+        await setValue(PERMISSION_STATUS, value);
+        await getUserLocation().then((value) async {
+          await appStore.setCurrentLocation(!appStore.isCurrentLocation);
         }).catchError((e) {
+          appStore.setLoading(false);
           toast(e.toString(), print: true);
         });
-      },
-    ),
-  );
+
+        onTap.call();
+      }
+    }
+  }).catchError((e) {
+    toast(e.toString(), print: true);
+  });
 }
 
-Future deleteDialog(
-  BuildContext context, {
-  final String? title,
-  final String? subTitle,
-  required final Function() onSuccess,
-  final Function()? onCancel,
+Future<List<File>> pickFiles({
+  FileType type = FileType.any,
+  List<String> allowedExtensions = const [],
+  int maxFileSizeMB = 5,
+  bool allowMultiple = false,
 }) async {
-  return showInDialog(
-    context,
-    contentPadding: EdgeInsets.zero,
-    builder: (c) {
-      return Container(
-        width: context.width(),
-        padding: EdgeInsets.symmetric(vertical: 40, horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 100,
-              width: 100,
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: primaryColor,
-              ),
-              child: Image.asset(ic_delete_dialog, height: 60, width: 60),
-            ),
-            32.height,
-            Text(title ?? language.lblDeleteAddress, style: boldTextStyle(size: 22)),
-            16.height,
-            Text(subTitle ?? language.lblDeleteSunTitle, style: secondaryTextStyle(), textAlign: TextAlign.center),
-            24.height,
-            Row(
-              children: [
-                AppButton(
-                  text: language.lblCancel,
-                  textColor: textPrimaryColorGlobal,
-                  color: context.cardColor,
-                  onTap: onCancel ??
-                      () {
-                        finish(context);
-                      },
-                ).expand(),
-                16.width,
-                AppButton(
-                  text: language.lblDelete,
-                  color: primaryColor,
-                  textColor: Colors.white,
-                  onTap: () {
-                    onSuccess.call();
-                    finish(context);
-                  },
-                ).expand(),
-              ],
-            )
-          ],
-        ),
-      );
-    },
-  );
+  List<File> _filePath = [];
+  try {
+    FilePickerResult? filePickerResult = await FilePicker.platform.pickFiles(
+      type: type,
+      allowMultiple: allowMultiple,
+      withData: Platform.isAndroid ? false : true,
+      allowedExtensions: allowedExtensions,
+      onFileLoading: (FilePickerStatus status) => print(status),
+    );
+    if (filePickerResult != null) {
+      if (Platform.isAndroid) {
+        // For Android, check file size and use the PlatformFile directly
+        for (PlatformFile file in filePickerResult.files) {
+          if (file.size <= maxFileSizeMB * 1024 * 1024) {
+            _filePath.add(File(file.path!));
+          } else {
+            // File size exceeds the limit
+            toast('File size should be less than $maxFileSizeMB MB');
+          }
+        }
+      } else {
+        Directory cacheDir = await getTemporaryDirectory();
+        for (PlatformFile file in filePickerResult.files) {
+          if (file.bytes != null && file.size <= maxFileSizeMB * 1024 * 1024) {
+            String filePath = '${cacheDir.path}/${file.name}';
+            File cacheFile = File(filePath);
+            await cacheFile.writeAsBytes(file.bytes!.toList());
+            _filePath.add(cacheFile);
+          } else {
+            // File size exceeds the limit
+            toast('File size should be less than $maxFileSizeMB MB');
+          }
+        }
+      }
+    }
+  } on PlatformException catch (e) {
+    print('Unsupported operation' + e.toString());
+  } catch (e) {
+    print(e.toString());
+  }
+  return _filePath;
 }
 
 // Logic For Calculate Time
@@ -407,172 +420,75 @@ String calculateTimer(int secTime) {
   return result;
 }
 
-num getHourlyPrice({required int secTime, required num price, required String date}) {
-  if (isTodayAfterDate(DateTime.parse(date))) {
-    return hourlyCalculationNew(price: price, secTime: secTime);
-  } else {
-    return hourlyCalculation(price: price, secTime: secTime);
+String convertToHourMinute(String timeStr) {
+  if (timeStr.isEmpty) {
+    return ''; // Handle empty time string
   }
-}
 
-String newCalculateTimer(int secTime) {
-  int hour = 0, minute = 0, seconds = 0;
+  // Normalize time string to always have two digits for hours
+  List<String> parts = timeStr.split(':');
+  int hours = int.parse(parts[0]) % 24; // Ensure hours are within 24 hours
+  int minutes = int.parse(parts[1]);
 
-  hour = secTime ~/ 3600;
-
-  minute = ((secTime - hour * 3600)) ~/ 60;
-
-  seconds = secTime - (hour * 3600) - (minute * 60);
-
-  String hourLeft = hour.toString().length < 2 ? "0" + hour.toString() : hour.toString();
-
-  String minuteLeft = minute.toString().length < 2 ? "0" + minute.toString() : minute.toString();
-
-  String secondsLeft = seconds.toString().length < 2 ? "0" + seconds.toString() : seconds.toString();
-
-  String result = "$hourLeft:$minuteLeft:$secondsLeft";
-
+  // Construct the resulting string
+  String result = '';
+  if (hours > 0) {
+    result += '${hours}${language.lblHr}';
+  }
+  if (minutes > 0) {
+    result = (result.validate().isNotEmpty) ? '$result $minutes ${language.min}' : '$minutes ${language.min}';
+  }
   return result;
 }
 
-num hourlyCalculationNew({required int secTime, required num price}) {
-  /// Calculating time on based of seconds.
-  String time = newCalculateTimer(secTime);
-
-  /// Splitting the time to get the Hour,Minute,Seconds.
-  List<String> data = time.split(":");
-  String hour = data.first, minute = data[1];
-  //String hour = data.first, minute = data[1], seconds = data.last;
-
-  /// Calculating per minute charge for the price [Price is Dynamic].
-  String perMinuteCharge = (price / 60).toStringAsFixed(2);
-
-  /// If time is less than a hour then it will calculate the Base Price default.
-  if (hour == "00") {
-    return (price * 1).toStringAsFixed(2).toDouble();
-  }
-
-  ///If the time has passed the hour mark, the minute charge will be calculated.
-  else if (hour != "00") {
-    String value = (price * 1).toStringAsFixed(2);
-
-    ///If the minute after one hour is greater than 00 (i.e. 01:02:00), the 02 minute charge will be calculated and added to the base price.
-
-    if (minute != "00") {
-      /// Calculating Minute Charge for the service,
-      num minuteCharge = perMinuteCharge.toDouble() * minute.toDouble();
-
-      return price + minuteCharge;
-    }
-
-    return value.toDouble();
-  }
-
-  return 0.0;
-}
-
-num hourlyCalculation({required int secTime, required num price}) {
-  num result = 0;
-
-  String time = calculateTimer(secTime);
-  String perMinuteCharge = (price / 60).toStringAsFixed(2);
-
-  if (time == "01:00") {
-    String value = (price * 1).toStringAsFixed(2);
-    result = value.toDouble();
-  } else {
-    List<String> data = time.split(":");
-    if (data.first == "00") {
-      String value;
-      if (secTime < 60) {
-        value = (perMinuteCharge.toDouble() * 1).toStringAsFixed(2);
-      } else {
-        value = (perMinuteCharge.toDouble() * data.last.toDouble()).toStringAsFixed(2);
-      }
-
-      result = value.toDouble();
-    } else {
-      if (data.first.toInt() > 01 && data.last.toInt() == 00) {
-        String value = (price * data.first.toInt()).toStringAsFixed(2);
-        result = value.toDouble();
-      } else {
-        String value = (price * data.first.toInt()).toStringAsFixed(2);
-        String extraMinuteCharge = (data.last.toDouble() * perMinuteCharge.toDouble()).toStringAsFixed(2);
-        String finalPrice = (value.toDouble() + extraMinuteCharge.toDouble()).toStringAsFixed(2);
-        result = finalPrice.toDouble();
-      }
-    }
-  }
-
-  return result.toDouble();
-}
-
-Brightness getStatusBrightness({required bool val}) {
-  return val ? Brightness.light : Brightness.dark;
-}
-
-String getPaymentStatusText(String? status, String? method) {
+String getPaymentStatusFilterText(String? status) {
   if (status!.isEmpty) {
-    return 'Chưa giải quyết';
-  } else if (status == SERVICE_PAYMENT_STATUS_PAID) {
-    return 'Đã thanh toán';
-  } else if (status == SERVICE_PAYMENT_STATUS_PENDING && method == PAYMENT_METHOD_COD) {
-    return 'Chờ phê duyệt';
-  }
-  if (status == SERVICE_PAYMENT_STATUS_PENDING) {
-    return 'Chưa giải quyết';
+    return language.lblPending;
+  } else if (status == SERVICE_PAYMENT_STATUS_PAID || status == PENDING_BY_ADMIN) {
+    return language.paid;
+  } else if (status == SERVICE_PAYMENT_STATUS_ADVANCE_PAID) {
+    return language.advancePaid;
+  } else if (status == SERVICE_PAYMENT_STATUS_PENDING) {
+    return language.lblPending;
+  } else if (status == SERVICE_PAYMENT_STATUS_ADVANCE_REFUND) {
+    return language.advancedRefund;
   } else {
     return "";
   }
 }
 
-String getReasonText(String val) {
-  if (val == BookingStatusKeys.cancelled) {
-    return language.lblReasonCancelling;
-  } else if (val == BookingStatusKeys.rejected) {
-    return language.lblReasonRejecting;
-  } else if (val == BookingStatusKeys.failed) {
-    return language.lblFailed;
+String getPaymentStatusText(String? status, String? method) {
+  if (status!.isEmpty) {
+    return language.lblPending;
+  } else if (status == SERVICE_PAYMENT_STATUS_PAID || status == PENDING_BY_ADMIN) {
+    return language.paid;
+  } else if (status == SERVICE_PAYMENT_STATUS_ADVANCE_PAID) {
+    return language.advancePaid;
+  } else if ((status == SERVICE_PAYMENT_STATUS_PENDING || status == 'pending_approval') && method == PAYMENT_METHOD_COD) {
+    return language.pendingApproval;  //TODO: check this condition 'pending_approval' status not coming from backend
+  } else if (status == SERVICE_PAYMENT_STATUS_PENDING) {
+    return language.lblPending;
+  } else if (status == SERVICE_PAYMENT_STATUS_ADVANCE_REFUND) {
+    return language.cancelled;
+  } else {
+    return "";
   }
-  return '';
 }
 
 String buildPaymentStatusWithMethod(String status, String method) {
-  return '${getPaymentStatusText(status, method)}${status == SERVICE_PAYMENT_STATUS_PAID ? ' bởi ${method.capitalizeFirstLetter()}' : ''}';
+  return '${getPaymentStatusText(status, method)}${(status == SERVICE_PAYMENT_STATUS_PAID || status == PENDING_BY_ADMIN) ? ' ${language.by} ${method.capitalizeFirstLetter()}' : ''}';
 }
 
-Color getRatingBarColor(int rating) {
+Color getRatingBarColor(int rating, {bool showRedForZeroRating = false}) {
   if (rating == 1 || rating == 2) {
-    return Color(0xFFE80000);
+    return showRedForZeroRating ? showRedForZeroRatingColor : ratingBarColor;
   } else if (rating == 3) {
     return Color(0xFFff6200);
   } else if (rating == 4 || rating == 5) {
     return Color(0xFF73CB92);
   } else {
-    return Color(0xFFE80000);
+    return showRedForZeroRating ? showRedForZeroRatingColor : ratingBarColor;
   }
-}
-
-Future<FirebaseRemoteConfig> setupFirebaseRemoteConfig() async {
-  final FirebaseRemoteConfig remoteConfig = FirebaseRemoteConfig.instance;
-
-  remoteConfig.setConfigSettings(RemoteConfigSettings(fetchTimeout: Duration.zero, minimumFetchInterval: Duration.zero));
-  await remoteConfig.fetch();
-  await remoteConfig.fetchAndActivate();
-
-  if (remoteConfig.getString(USER_CHANGE_LOG).validate().isNotEmpty) {
-    remoteConfigDataModel = RemoteConfigDataModel.fromJson(jsonDecode(remoteConfig.getString(USER_CHANGE_LOG)));
-
-    setValue(USER_CHANGE_LOG, remoteConfig.getString(USER_CHANGE_LOG));
-
-    if (isIOS) {
-      await setValue(HAS_IN_REVIEW, remoteConfig.getBool(HAS_IN_APP_STORE_REVIEW));
-    } else if (isAndroid) {
-      await setValue(HAS_IN_REVIEW, remoteConfig.getBool(HAS_IN_PLAY_STORE_REVIEW));
-    }
-  }
-
-  return remoteConfig;
 }
 
 void ifNotTester(VoidCallback callback) {
@@ -599,13 +515,18 @@ Widget get trailing {
   return ic_arrow_right.iconImage(size: 16);
 }
 
-void showNewUpdateDialog(BuildContext context) async {
+void showNewUpdateDialog(BuildContext context, {required int currentAppVersionCode}) async {
   showInDialog(
     context,
     contentPadding: EdgeInsets.zero,
-    barrierDismissible: !remoteConfigDataModel.isForceUpdate.validate(),
+    barrierDismissible: currentAppVersionCode >= getIntAsync(USER_APP_MINIMUM_VERSION).toInt(),
     builder: (_) {
-      return NewUpdateDialog();
+      return WillPopScope(
+        onWillPop: () {
+          return Future(() => currentAppVersionCode >= getIntAsync(USER_APP_MINIMUM_VERSION).toInt());
+        },
+        child: NewUpdateDialog(canClose: currentAppVersionCode >= getIntAsync(USER_APP_MINIMUM_VERSION).toInt()),
+      );
     },
   );
 }
@@ -613,28 +534,48 @@ void showNewUpdateDialog(BuildContext context) async {
 Future<void> showForceUpdateDialog(BuildContext context) async {
   if (getBoolAsync(UPDATE_NOTIFY, defaultValue: true)) {
     getPackageInfo().then((value) {
-      if (isAndroid && remoteConfigDataModel.android != null && remoteConfigDataModel.android!.versionCode.validate().toInt() > value.versionCode.validate().toInt()) {
-        showNewUpdateDialog(context);
-      } else if (isIOS && remoteConfigDataModel.iOS != null && remoteConfigDataModel.iOS!.versionCode.validate() != value.versionCode.validate()) {
-        showNewUpdateDialog(context);
+      if (isAndroid && getIntAsync(USER_APP_LATEST_VERSION).toInt() > value.versionCode.validate().toInt()) {
+        showNewUpdateDialog(context, currentAppVersionCode: value.versionCode.validate().toInt());
+      } else if (isIOS && getIntAsync(USER_APP_LATEST_VERSION).toInt() > value.versionCode.validate().toInt()) {
+        showNewUpdateDialog(context, currentAppVersionCode: value.versionCode.validate().toInt());
       }
     });
   }
 }
 
-bool get isCurrencyPositionLeft => getStringAsync(CURRENCY_POSITION, defaultValue: CURRENCY_POSITION_LEFT) == CURRENCY_POSITION_LEFT;
+bool checkTimeDifference({required DateTime inputDateTime}) {
+  DateTime currentTime = DateTime.now();
 
-bool get isCurrencyPositionRight => getStringAsync(CURRENCY_POSITION, defaultValue: CURRENCY_POSITION_LEFT) == CURRENCY_POSITION_RIGHT;
+  log("Booking Time Diffrence ==> ${inputDateTime.difference(currentTime).inHours}");
+  if (currentTime.isBefore(inputDateTime) && inputDateTime.difference(currentTime).inHours <= appConfigurationStore.cancellationChargeHours) {
+    return true;
+  }
 
-bool isTodayAfterDate(DateTime val) => val.isAfter(todayDate);
+  // Check if the current time is after the booking date and time
+  if (currentTime.isAfter(inputDateTime)) {
+    return false;
+  }
 
-Widget mobileNumberInfoWidget() {
+  // Otherwise, it's more than 12 hours before the booking time
+  return false;
+}
+
+String bankAccountWidget(String accountNo) {
+  if (accountNo.length <= 4) {
+    return accountNo;
+  }
+  final obscuredPart = '*' * (accountNo.length - 4);
+  final visiblePart = accountNo.substring(accountNo.length - 4);
+  return obscuredPart + visiblePart;
+}
+
+Widget mobileNumberInfoWidget(BuildContext context) {
   return RichTextWidget(
     list: [
-      TextSpan(text: 'Thêm mã quốc gia', style: secondaryTextStyle(size: 12)),
-      TextSpan(text: ' "84-" ', style: boldTextStyle(size: 12)),
+      TextSpan(text: '${language.addYourCountryCode}', style: secondaryTextStyle()),
+      TextSpan(text: ' "84-", "01-" ', style: boldTextStyle(size: 12)),
       TextSpan(
-        text: ' (Hướng dẫn)',
+        text: ' (${language.help})',
         style: boldTextStyle(size: 12, color: primaryColor),
         recognizer: TapGestureRecognizer()
           ..onTap = () {
@@ -644,3 +585,154 @@ Widget mobileNumberInfoWidget() {
     ],
   );
 }
+
+class OptionListWidget extends StatelessWidget {
+  final List<OptionModel> optionList;
+
+  const OptionListWidget({super.key, required this.optionList});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(
+        optionList.length,
+        (index) => Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: optionList[index].onTap,
+              child: Text(
+                optionList[index].title,
+                style: secondaryTextStyle(
+                  color: primaryColor,
+                  size: 12,
+                  weight: FontWeight.bold,
+                ),
+              ),
+            ),
+            8.width,
+            Text("|", style: secondaryTextStyle()).visible(optionList.length != index + 1),
+            8.width,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class OptionModel {
+  final String title;
+  final Function()? onTap;
+
+  OptionModel({required this.title, required this.onTap});
+}
+
+String sumTimes(String time1, String time2) {
+  // Parse the time strings into Duration objects
+  Duration duration1 = _parseTimeToDuration(time1);
+  Duration duration2 = _parseTimeToDuration(time2);
+
+  // Sum the durations
+  Duration totalDuration = duration1 + duration2;
+
+  // Convert the total duration back to a formatted time string
+  return _formatDurationToTime(totalDuration);
+}
+
+Duration _parseTimeToDuration(String time) {
+  List<String> parts = time.split(':');
+  int hours = int.parse(parts[0]);
+  int minutes = int.parse(parts[1]);
+  int seconds = int.parse(parts[2]);
+
+  return Duration(hours: hours, minutes: minutes, seconds: seconds);
+}
+
+String _formatDurationToTime(Duration duration) {
+  int hours = duration.inHours;
+  int minutes = duration.inMinutes % 60;
+  int seconds = duration.inSeconds % 60;
+
+  return '${_twoDigits(hours)}:${_twoDigits(minutes)}:${_twoDigits(seconds)}';
+}
+
+String _twoDigits(int n) {
+  return n.toString().padLeft(2, '0');
+}
+
+void share({required String url, required BuildContext context}) {
+  if (Platform.isIOS) {
+    try {
+      final box = context.findRenderObject() as RenderBox?;
+      Share.share(url, subject: "", sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size);
+    } catch (e) {
+      log('Failed to share: $e');
+    }
+  } else {
+    Share.share(url);
+  }
+}
+
+Future<List<File>> getMultipleImageSource({bool isCamera = true}) async {
+  final pickedImage = await ImagePicker().pickMultiImage();
+  return pickedImage.map((e) => File(e.path)).toList();
+}
+
+Future<File> getCameraImage({bool isCamera = true}) async {
+  final pickedImage = await ImagePicker().pickImage(source: isCamera ? ImageSource.camera : ImageSource.gallery);
+  return File(pickedImage!.path);
+}
+
+//region Multi Language Component
+class MultiLanguageWidget extends StatelessWidget {
+  final Function(LanguageDataModel languageDetails) onTap;
+
+  const MultiLanguageWidget({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Observer(
+      builder: (context) {
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(color: context.scaffoldBackgroundColor),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: List.generate(
+                languageList().length,
+                (index) {
+                  LanguageDataModel languageData = languageList()[index];
+                  return ElevatedButton(
+                    onPressed: () {
+                      onTap(languageData);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: appStore.selectedLanguage.languageCode == languageData.languageCode ? primaryColor : context.scaffoldBackgroundColor,
+                      elevation: 0,
+                      side: BorderSide(width: 1, color: context.iconColor),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CachedImageWidget(url: languageData.flag.validate(), height: 16),
+                        4.width,
+                        Text(languageData.name.validate().toUpperCase(), style: secondaryTextStyle(color: appStore.selectedLanguage.languageCode == languageData.languageCode ? white : textSecondaryColorGlobal))
+                      ],
+                    ),
+                  ).paddingOnly(right: 8, left: languageList().first.languageCode == languageData.languageCode ? 16 : 0);
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+//endregion

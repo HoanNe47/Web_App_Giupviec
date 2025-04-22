@@ -6,10 +6,31 @@ class FilterStore = FilterStoreBase with _$FilterStore;
 
 abstract class FilterStoreBase with Store {
   @observable
+  List<int> serviceId = ObservableList();
+
+  @observable
+  List<int> customerId = ObservableList();
+
+  @observable
   List<int> providerId = ObservableList();
 
   @observable
   List<int> handymanId = ObservableList();
+
+  @observable
+  List<String> bookingStatus = ObservableList();
+
+  @observable
+  List<String> paymentStatus = ObservableList();
+
+  @observable
+  List<String> paymentType = ObservableList();
+
+  @observable
+  String startDate = '';
+
+  @observable
+  String endDate = '';
 
   @observable
   List<int> ratingId = ObservableList();
@@ -34,6 +55,66 @@ abstract class FilterStoreBase with Store {
 
   @observable
   String longitude = '';
+
+  @action
+  void setStartDate(String val) {
+    startDate = val;
+  }
+
+  @action
+  void setEndDate(String val) {
+    endDate = val;
+  }
+
+  @action
+  Future<void> addToServiceList({required int serId}) async {
+    serviceId.add(serId);
+  }
+
+  @action
+  Future<void> removeFromServiceList({required int serId}) async {
+    serviceId.removeWhere((element) => element == serId);
+  }
+
+  @action
+  Future<void> addToCustomerList({required int cusId}) async {
+    customerId.add(cusId);
+  }
+
+  @action
+  Future<void> removeFromCustomerList({required int cusId}) async {
+    customerId.removeWhere((element) => element == cusId);
+  }
+
+  @action
+  Future<void> addToBookingStatusList({required String bookingStatusList}) async {
+    bookingStatus.add(bookingStatusList);
+  }
+
+  @action
+  Future<void> removeFromBookingStatusList({required String bookingStatusList}) async {
+    bookingStatus.removeWhere((element) => element == bookingStatusList);
+  }
+
+  @action
+  Future<void> addToPaymentStatusList({required String paymentStatusList}) async {
+    paymentStatus.add(paymentStatusList);
+  }
+
+  @action
+  Future<void> removeFromPaymentStatusList({required String paymentStatusList}) async {
+    paymentStatus.removeWhere((element) => element == paymentStatusList);
+  }
+
+  @action
+  Future<void> addToPaymentTypeList({required String paymentTypeList}) async {
+    paymentType.add(paymentTypeList);
+  }
+
+  @action
+  Future<void> removeFromPaymentTypeList({required String paymentTypeList}) async {
+    paymentType.removeWhere((element) => element == paymentTypeList);
+  }
 
   @action
   Future<void> addToProviderList({required int prodId}) async {
@@ -71,8 +152,8 @@ abstract class FilterStoreBase with Store {
   }
 
   @action
-  Future<void> addToRatingId({required int prodId}) async {
-    ratingId.add(prodId);
+  Future<void> addToRatingId({required List<int> prodId}) async {
+    ratingId = ObservableList.of(prodId);
   }
 
   @action
@@ -82,8 +163,15 @@ abstract class FilterStoreBase with Store {
 
   @action
   Future<void> clearFilters() async {
+    customerId.clear();
+    serviceId.clear();
     providerId.clear();
     handymanId.clear();
+    bookingStatus.clear();
+    paymentType.clear();
+    paymentStatus.clear();
+    startDate = '';
+    endDate = '';
     ratingId.clear();
     categoryId.clear();
     isPriceMax = "";

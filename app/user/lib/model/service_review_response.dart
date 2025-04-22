@@ -1,4 +1,4 @@
-import 'package:actcms_spa_flutter/model/service_detail_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_detail_response.dart';
 
 class ServiceReviewResponse {
   List<RatingData>? ratingList;

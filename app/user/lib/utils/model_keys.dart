@@ -9,6 +9,14 @@ class CommonKeys {
   static String date = 'date';
   static String status = 'status';
   static String dateTime = 'datetime';
+  static String txnId = "txn_id";
+  static String paymentStatus = "payment_status";
+  static String paymentMethod = "payment_type";
+  static String ortherDetail = "orther_detail";
+  static String advancePaidAmount = "advance_paid_amount";
+  static String cancellationCharge = "cancellation_charge";
+  static String cancellationChargeAmount = "cancellation_charge_amount";
+  static String type = 'type';
 }
 
 class UserKeys {
@@ -25,10 +33,14 @@ class UserKeys {
   static String oldPassword = 'old_password';
   static String newPassword = 'new_password';
   static String profileImage = 'profile_image';
-  static String playerId = 'player_id';
+  static String firebaseToken = 'firebase_token';
   static String uid = 'uid';
   static String id = 'id';
   static String loginType = 'login_type';
+  static String displayName = 'display_name';
+  static String providerId = 'provider_id';
+  static String status = 'status';
+  static String isDefault = 'is_default';
 }
 
 class BookingServiceKeys {
@@ -36,6 +48,10 @@ class BookingServiceKeys {
   static String couponId = 'coupon_id';
   static String date = 'date';
   static String totalAmount = 'total_amount';
+  static String userPostJob = 'user_post_job';
+  static String type = 'type';
+  static String bookingPackage = 'booking_package';
+  static String serviceAddonId = 'service_addon_id';
 }
 
 class CouponKeys {
@@ -62,6 +78,8 @@ class BookingStatusKeys {
   static String failed = 'failed';
   static String complete = 'completed';
   static String cancelled = 'cancelled';
+  static String pendingApproval = "pending_approval";
+  static String waitingAdvancedPayment = "waiting";
 }
 
 class BookingUpdateKeys {
@@ -71,6 +89,11 @@ class BookingUpdateKeys {
   static String date = 'date';
 
   static String durationDiff = 'duration_diff';
+  static String paymentStatus = 'payment_status';
+
+  static String serviceAddon = 'service_addon';
+
+  static String type = 'type';
 }
 
 class NotificationKey {
@@ -81,4 +104,88 @@ class NotificationKey {
 class CurrentLocationKey {
   static String latitude = 'latitude';
   static String longitude = 'longitude';
+}
+
+class CreateService {
+  static String id = 'id';
+  static String name = 'name';
+  static String description = 'description';
+  static String type = "type";
+  static String price = "price";
+  static String images = "images";
+  static String attachmentCount = "attachment_count";
+  static String serviceAttachment = 'service_attachment_';
+  static String addedBy = 'added_by';
+  static String providerId = 'provider_id';
+  static String categoryId = 'category_id';
+  static String status = 'status';
+  static String duration = 'duration';
+  static String attchments = 'attchments';
+  static String translations = 'translations';
+}
+
+class PostJob {
+  static String postRequestId = 'post_request_id';
+  static String postTitle = 'title';
+  static String description = 'description';
+  static String serviceId = 'service_id';
+  static String price = 'price';
+  static String jobPrice = 'job_price';
+  static String status = 'status';
+  static String providerId = 'provider_id';
+  static String latitude = 'latitude';
+  static String longitude = 'longitude';
+}
+
+class PackageKey {
+  static String packageId = "id";
+  static String categoryId = 'category_id';
+  static String name = "name";
+  static String price = 'price';
+  static String serviceId = 'service_id';
+  static String startDate = "start_at";
+  static String endDate = "end_at";
+  static String isFeatured = 'is_featured';
+  static String packageType = 'package_type';
+}
+
+class BlogKey {
+  static String attachmentCount = 'attachment_count';
+  static String blogAttachment = 'blog_attachment_';
+  static String id = 'id';
+  static String title = 'title';
+  static String description = 'description';
+  static String isFeatured = 'is_featured';
+  static String status = 'status';
+  static String providerId = 'provider_id';
+  static String authorId = 'author_id';
+  static String blogId = 'blog_id';
+}
+
+class AdvancePaymentKey {
+  static String advancePaymentAmount = "advance_payment_amount"; // double value
+  static String isEnableAdvancePayment = 'is_enable_advance_payment'; // 0/1
+  static String advancePaidAmount = 'advance_paid_amount';
+}
+
+class BankServiceKey {
+  static String bankName = 'bank_name';
+  static String branchName = 'branch_name';
+  static String accountNo = 'account_no';
+  static String ifscNo = 'ifsc_no';
+  static String mobileNo = 'mobile_no';
+  static String aadharNo = 'aadhar_no';
+  static String panNo = 'pan_no';
+  static String bankAttachment = 'bank_attachment';
+  static String bankProfile = 'bank_profile';
+}
+
+class HelpDeskKey {
+  static String helpDeskId = 'id';
+  static String subject = 'subject';
+  static String description = 'description';
+  static String mode = 'mode';
+  static String helpdeskAttachment = 'helpdesk_attachment_';
+  static String helpdeskActivityAttachment = 'helpdesk_activity_attachment_';
+  static String attachmentCount = 'attachment_count';
 }

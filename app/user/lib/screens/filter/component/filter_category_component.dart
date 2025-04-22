@@ -1,10 +1,12 @@
-import 'package:actcms_spa_flutter/component/background_component.dart';
-import 'package:actcms_spa_flutter/component/selected_item_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/category_model.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/selected_item_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/category_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../../component/empty_error_state_widget.dart';
+import '../../../component/image_border_component.dart';
 
 class FilterCategoryComponent extends StatefulWidget {
   final List<CategoryData> catList;
@@ -30,17 +32,28 @@ class _FilterCategoryComponentState extends State<FilterCategoryComponent> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.catList.isEmpty) return BackgroundComponent();
+    if (widget.catList.isEmpty)
+      return NoDataWidget(
+        title: language.noCategoryFound,
+        imageWidget: EmptyStateWidget(),
+      );
 
     return AnimatedListView(
       itemCount: widget.catList.length,
       slideConfiguration: sliderConfigurationGlobal,
+      listAnimationType: ListAnimationType.FadeIn,
+      fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
       itemBuilder: (context, index) {
         CategoryData data = widget.catList[index];
         return Container(
           padding: EdgeInsets.all(16),
           child: Row(
             children: [
+              ImageBorder(
+                src: data.categoryImage.validate(),
+                height: 35,
+              ),
+              12.width,
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

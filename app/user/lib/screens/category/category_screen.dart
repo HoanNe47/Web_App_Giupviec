@@ -1,77 +1,51 @@
-import 'package:actcms_spa_flutter/component/back_widget.dart';
-import 'package:actcms_spa_flutter/component/loader_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/category_model.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/component/category_widget.dart';
-import 'package:actcms_spa_flutter/screens/service/search_list_screen.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/back_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/loader_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/category_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/category/shimmer/category_shimmer.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/component/category_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:nb_utils/nb_utils.dart';
 
-class CategoryScreen extends StatefulWidget {
+import '../../component/empty_error_state_widget.dart';
+import '../../utils/constant.dart';
+import '../service/view_all_service_screen.dart';
 
+class CategoryScreen extends StatefulWidget {
   @override
   _CategoryScreenState createState() => _CategoryScreenState();
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
-  ScrollController scrollController = ScrollController();
-  UniqueKey key = UniqueKey();
+  late Future<List<CategoryData>> future;
+  List<CategoryData> categoryList = [];
 
   int page = 1;
-  List<CategoryData> mainList = [];
-
-  bool isEnabled = false;
   bool isLastPage = false;
-  bool fabIsVisible = true;
+  bool isApiCalled = false;
 
-  @override
+  UniqueKey key = UniqueKey();
+
   void initState() {
     super.initState();
     init();
   }
 
   void init() async {
-    fetchAllCategoryData();
-    afterBuildCreated(() {
-      setStatusBarColor(context.primaryColor);
+    future = getCategoryListWithPagination(page, categoryList: categoryList, lastPageCallBack: (val) {
+      isLastPage = val;
     });
-    scrollController.addListener(() {
-      if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
-        if (!isLastPage) {
-          page++;
-          fetchAllCategoryData();
-        }
-      }
-    });
-  }
-
-  Future fetchAllCategoryData() async {
-    appStore.setLoading(true);
-
-    await getCategoryList(page.toString()).then((value) {
-      if (page == 1) {
-        mainList.clear();
-        key = UniqueKey();
-      }
-      mainList.addAll(value.categoryList.validate());
-
-      isLastPage = value.categoryList!.length != PER_PAGE_ITEM;
-
-      setState(() {});
-    }).catchError((e) {
-      toast(e.toString());
-    });
-
-    appStore.setLoading(false);
+    if (page == 1) {
+      key = UniqueKey();
+    }
   }
 
   @override
   void dispose() {
-    scrollController.dispose();
     super.dispose();
   }
 
@@ -82,47 +56,92 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        page = 1;
-        return await fetchAllCategoryData();
-      },
-      child: Scaffold(
-        appBar: appBarWidget(
-          language.lblCategory,
-          textColor: Colors.white,
-          color: primaryColor,
-          showBack: Navigator.canPop(context),
-          backWidget: BackWidget(),
-        ),
-        body: Stack(
-          children: [
-            SingleChildScrollView(
-              physics: AlwaysScrollableScrollPhysics(),
-              controller: scrollController,
-              padding: EdgeInsets.all(16),
-              child: AnimatedWrap(
-                key: key,
-                runSpacing: 16,
-                spacing: 16,
-                itemCount: mainList.length,
-                listAnimationType: ListAnimationType.Scale,
-                scaleConfiguration: ScaleConfiguration(duration: 300.milliseconds, delay: 50.milliseconds),
-                itemBuilder: (_, index) {
-                  CategoryData data = mainList[index];
+    return Scaffold(
+      appBar: appBarWidget(
+        language.category,
+        textColor: Colors.white,
+        textSize: APP_BAR_TEXT_SIZE,
+        color: primaryColor,
+        systemUiOverlayStyle: SystemUiOverlayStyle(statusBarIconBrightness: appStore.isDarkMode ? Brightness.light : Brightness.light, statusBarColor: context.primaryColor),
+        showBack: Navigator.canPop(context),
+        backWidget: BackWidget(),
+      ),
+      body: Stack(
+        children: [
+          SnapHelperWidget<List<CategoryData>>(
+            initialData: cachedCategoryList,
+            future: future,
+            loadingWidget: CategoryShimmer(),
+            onSuccess: (snap) {
+              if (snap.isEmpty) {
+                return NoDataWidget(
+                  title: language.noCategoryFound,
+                  imageWidget: EmptyStateWidget(),
+                );
+              }
 
-                  return GestureDetector(
-                    onTap: () {
-                      SearchListScreen(categoryId: data.id.validate(), categoryName: data.name).launch(context);
-                    },
-                    child: CategoryWidget(categoryData: data, width: context.width() / 2 - 24),
-                  );
+              return AnimatedScrollView(
+                onSwipeRefresh: () async {
+                  page = 1;
+
+                  init();
+                  setState(() {});
+
+                  return await 2.seconds.delay;
                 },
-              ),
-            ),
-            Observer(builder: (BuildContext context) => LoaderWidget().visible(appStore.isLoading.validate()))
-          ],
-        ),
+                physics: AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.all(16),
+                listAnimationType: ListAnimationType.FadeIn,
+                fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
+                onNextPage: () {
+                  if (!isLastPage) {
+                    page++;
+                    appStore.setLoading(true);
+
+                    init();
+                    setState(() {});
+                  }
+                },
+                children: [
+                  AnimatedWrap(
+                    key: key,
+                    runSpacing: 16,
+                    spacing: 16,
+                    itemCount: snap.length,
+                    listAnimationType: ListAnimationType.FadeIn,
+                    fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
+                    scaleConfiguration: ScaleConfiguration(duration: 300.milliseconds, delay: 50.milliseconds),
+                    itemBuilder: (_, index) {
+                      CategoryData data = snap[index];
+
+                      return GestureDetector(
+                        onTap: () {
+                          ViewAllServiceScreen(categoryId: data.id.validate(), categoryName: data.name, isFromCategory: true).launch(context);
+                        },
+                        child: CategoryWidget(categoryData: data, width: context.width() / 4 - 20),
+                      );
+                    },
+                  ).center(),
+                ],
+              );
+            },
+            errorBuilder: (error) {
+              return NoDataWidget(
+                title: error,
+                imageWidget: ErrorStateWidget(),
+                retryText: language.reload,
+                onRetry: () {
+                  page = 1;
+                  appStore.setLoading(true);
+
+                  init();
+                  setState(() {});
+                },
+              );
+            },
+          ),
+          Observer(builder: (BuildContext context) => LoaderWidget().visible(appStore.isLoading.validate())),
+        ],
       ),
     );
   }

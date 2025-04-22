@@ -1,4 +1,4 @@
-import 'package:actcms_spa_flutter/model/pagination_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/pagination_model.dart';
 
 class CategoryResponse {
   List<CategoryData>? categoryList;

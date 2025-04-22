@@ -1,14 +1,16 @@
-import 'package:actcms_spa_flutter/component/back_widget.dart';
-import 'package:actcms_spa_flutter/component/loader_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/services/location_service.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/back_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/loader_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/services/location_service.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../utils/constant.dart';
 
 class MapScreen extends StatefulWidget {
   final double? latLong;
@@ -23,6 +25,8 @@ class MapScreen extends StatefulWidget {
 class MapScreenState extends State<MapScreen> {
   CameraPosition _initialLocation = CameraPosition(target: LatLng(0.0, 0.0));
   late GoogleMapController mapController;
+
+  String? mapStyle;
 
   String _currentAddress = '';
 
@@ -39,6 +43,12 @@ class MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
 
+    if (appStore.isDarkMode) {
+      DefaultAssetBundle.of(context).loadString('assets/json/map_style_dark.json').then((value) {
+        mapStyle = value;
+        setState(() {});
+      }).catchError(onError);
+    }
     afterBuildCreated(() {
       _getCurrentLocation();
     });
@@ -47,7 +57,6 @@ class MapScreenState extends State<MapScreen> {
   // Method for retrieving the current location
   void _getCurrentLocation() async {
     appStore.setLoading(true);
-
     await getUserLocationPosition().then((position) async {
       setAddress();
 
@@ -117,7 +126,14 @@ class MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      appBar: appBarWidget(language.getLocation, backWidget: BackWidget(), color: primaryColor, elevation: 0, textColor: white),
+      appBar: appBarWidget(
+        language.chooseYourLocation,
+        backWidget: BackWidget(),
+        color: primaryColor,
+        elevation: 0,
+        textColor: white,
+        textSize: APP_BAR_TEXT_SIZE,
+      ),
       body: Stack(
         children: <Widget>[
           GoogleMap(
@@ -127,8 +143,9 @@ class MapScreenState extends State<MapScreen> {
             myLocationButtonEnabled: false,
             mapType: MapType.normal,
             zoomGesturesEnabled: true,
+            style: mapStyle,
             zoomControlsEnabled: false,
-            onMapCreated: (GoogleMapController controller) {
+            onMapCreated: (GoogleMapController controller) async {
               mapController = controller;
             },
             onTap: _handleTap,
@@ -139,9 +156,9 @@ class MapScreenState extends State<MapScreen> {
               children: <Widget>[
                 ClipOval(
                   child: Material(
-                    color: Colors.blue.shade100,
+                    color: context.primaryColor.withValues(alpha:0.2),
                     child: InkWell(
-                      splashColor: context.primaryColor.withOpacity(0.8),
+                      splashColor: context.primaryColor.withValues(alpha:0.8),
                       child: SizedBox(width: 50, height: 50, child: Icon(Icons.add)),
                       onTap: () {
                         mapController.animateCamera(CameraUpdate.zoomIn());
@@ -152,9 +169,9 @@ class MapScreenState extends State<MapScreen> {
                 SizedBox(height: 20),
                 ClipOval(
                   child: Material(
-                    color: Colors.blue.shade100,
+                    color: context.primaryColor.withValues(alpha:0.2),
                     child: InkWell(
-                      splashColor: context.primaryColor.withOpacity(0.8),
+                      splashColor: context.primaryColor.withValues(alpha:0.8),
                       child: SizedBox(width: 50, height: 50, child: Icon(Icons.remove)),
                       onTap: () {
                         mapController.animateCamera(CameraUpdate.zoomOut());
@@ -174,7 +191,7 @@ class MapScreenState extends State<MapScreen> {
               children: [
                 ClipOval(
                   child: Material(
-                    color: Colors.orange.shade100, // button color
+                    color: context.primaryColor.withValues(alpha:0.2), // button color
                     child: Icon(Icons.my_location, size: 25).paddingAll(10),
                   ),
                 ).paddingRight(8).onTap(() async {
@@ -200,8 +217,8 @@ class MapScreenState extends State<MapScreen> {
                       textFieldType: TextFieldType.MULTILINE,
                       controller: destinationAddressController,
                       focus: destinationAddressFocusNode,
-                      textStyle: primaryTextStyle(),
-                      decoration: inputDecoration(context, labelText: language.hintAddress).copyWith(fillColor: Colors.white70),
+                      textStyle: primaryTextStyle(color: appStore.isDarkMode ? Colors.white : Colors.black),
+                      decoration: inputDecoration(context, labelText: language.hintAddress).copyWith(fillColor: appStore.isDarkMode ? Colors.black54 : Colors.white70),
                     ),
                   ],
                 ),
@@ -209,7 +226,7 @@ class MapScreenState extends State<MapScreen> {
                 AppButton(
                   width: context.width(),
                   height: 16,
-                  color: primaryColor.withOpacity(0.8),
+                  color: primaryColor.withValues(alpha:0.8),
                   text: language.setAddress.toUpperCase(),
                   textStyle: boldTextStyle(color: white, size: 12),
                   onTap: () {

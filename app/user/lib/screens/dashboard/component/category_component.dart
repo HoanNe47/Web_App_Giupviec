@@ -1,16 +1,18 @@
-import 'package:actcms_spa_flutter/component/view_all_label_component.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/category_model.dart';
-import 'package:actcms_spa_flutter/screens/category/category_screen.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/component/category_widget.dart';
-import 'package:actcms_spa_flutter/screens/service/search_list_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/view_all_label_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/category_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/category/category_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/component/category_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/service/view_all_service_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
 class CategoryComponent extends StatefulWidget {
   final List<CategoryData>? categoryList;
+  final bool isNewDashboard;
 
-  CategoryComponent({this.categoryList});
+  CategoryComponent({this.categoryList, this.isNewDashboard = false});
 
   @override
   CategoryComponentState createState() => CategoryComponentState();
@@ -20,11 +22,6 @@ class CategoryComponentState extends State<CategoryComponent> {
   @override
   void initState() {
     super.initState();
-    init();
-  }
-
-  Future<void> init() async {
-    //
   }
 
   @override
@@ -36,41 +33,34 @@ class CategoryComponentState extends State<CategoryComponent> {
   Widget build(BuildContext context) {
     if (widget.categoryList.validate().isEmpty) return Offstage();
 
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ViewAllLabel(
-            label: language.category,
-            list: widget.categoryList!,
-            onTap: () {
-              CategoryScreen().launch(context).then((value) {
-                setStatusBarColor(Colors.transparent);
-              });
-            },
-          ),
-          16.height,
-          AnimatedWrap(
-            runSpacing: 16,
-            spacing: 16,
-            columnCount: 1,
-            itemCount: widget.categoryList.validate().length,
-            listAnimationType: ListAnimationType.Scale,
-            scaleConfiguration: ScaleConfiguration(duration: 300.milliseconds, delay: 50.milliseconds),
-            itemBuilder: (_, index) {
-              CategoryData data = widget.categoryList![index];
-
-              return GestureDetector(
-                onTap: () {
-                  SearchListScreen(categoryId: data.id.validate(), categoryName: data.name).launch(context);
-                },
-                child: CategoryWidget(categoryData: data),
-              );
-            },
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ViewAllLabel(
+          label: widget.isNewDashboard ? language.lblCategory : language.category,
+          list: widget.categoryList!,
+          trailingTextStyle: widget.isNewDashboard ? boldTextStyle(color: primaryColor, size: 12) : null,
+          onTap: () {
+            CategoryScreen().launch(context).then((value) {
+              setStatusBarColor(Colors.transparent);
+            });
+          },
+        ).paddingSymmetric(horizontal: 16),
+        AnimatedWrap(
+          spacing: 16,
+          runSpacing: 16,
+          itemCount: widget.categoryList.validate().length,
+          itemBuilder: (ctx, i) {
+            CategoryData data = widget.categoryList![i];
+            return GestureDetector(
+              onTap: () {
+                ViewAllServiceScreen(categoryId: data.id.validate(), categoryName: data.name, isFromCategory: true).launch(context);
+              },
+              child: CategoryWidget(categoryData: data),
+            );
+          },
+        ).paddingSymmetric(horizontal: 16),
+      ],
     );
   }
 }

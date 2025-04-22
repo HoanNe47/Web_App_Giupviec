@@ -1,32 +1,29 @@
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
+@Deprecated('Please use NoDataWidget instead of BackgroundComponent')
 class BackgroundComponent extends StatelessWidget {
   final String? image;
   final String? text;
   final String? subTitle;
   final double? size;
+  final double? height;
+  final double? width;
 
   final bool isError;
 
-  BackgroundComponent({this.image, this.text, this.subTitle, this.size, this.isError = false});
+  BackgroundComponent({this.image, this.text, this.subTitle, this.size, this.isError = false, this.height, this.width});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: context.height(),
-      width: context.width(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset(image ?? notDataFoundImg, width: size ?? 200),
-          30.height,
-          Text(text ?? language.lblNoData, style: boldTextStyle(size: 20), textAlign: TextAlign.center).paddingSymmetric(horizontal: 16),
-          if (subTitle.validate().isNotEmpty) Text(subTitle!, style: secondaryTextStyle(size: 20), textAlign: TextAlign.center).paddingSymmetric(horizontal: 16, vertical: 8),
-        ],
+      height: height ?? context.height(),
+      width: width ?? context.width() - 16,
+      child: NoDataWidget(
+        image: image,
+        title: text,
+        imageSize: Size(size ?? 150, size ?? 150),
+        subTitle: subTitle,
       ),
     );
   }

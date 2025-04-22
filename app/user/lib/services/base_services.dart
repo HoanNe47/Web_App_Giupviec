@@ -36,6 +36,13 @@ abstract class BaseService {
     return res.docs.isNotEmpty;
   }
 
+  Future<bool> isUserExistWithUid(String? uid) async {
+    Query query = ref!.limit(1).where('uid', isEqualTo: uid);
+    var res = await query.get();
+
+    return res.docs.isNotEmpty;
+  }
+
   Future<Iterable> getList() async {
     var res = await ref!.get();
     Iterable it = res.docs;

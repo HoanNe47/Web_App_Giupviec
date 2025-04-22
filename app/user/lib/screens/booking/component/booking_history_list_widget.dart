@@ -1,8 +1,7 @@
-import 'package:actcms_spa_flutter/model/booking_detail_model.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
-import 'package:actcms_spa_flutter/utils/dashed_rect.dart';
-import 'package:actcms_spa_flutter/utils/string_extensions.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/booking_detail_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/dashed_rect.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
@@ -21,9 +20,19 @@ class BookingHistoryListWidget extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            data.datetime.validate().toString().isNotEmpty ? Text(formatDate(data.datetime..validate().toString(), format: HOUR_12_FORMAT), style: secondaryTextStyle(size: 12)) : SizedBox(),
+            data.datetime.validate().toString().isNotEmpty
+                ? Text(
+                    formatDate(data.datetime..validate().toString()),
+                    style: secondaryTextStyle(),
+                  )
+                : SizedBox(),
             8.height,
-            data.datetime.validate().toString().isNotEmpty ? Text(formatDate(data.datetime..validate().toString(), format: DATE_FORMAT_4), style: primaryTextStyle(size: 14)) : SizedBox(),
+            data.datetime.validate().toString().isNotEmpty
+                ? Text(
+                    formatDate(data.datetime..validate().toString(), isTime: true),
+                    style: primaryTextStyle(size: 12),
+                  )
+                : SizedBox(),
           ],
         ).withWidth(55),
         16.width,
@@ -59,7 +68,7 @@ class BookingHistoryListWidget extends StatelessWidget {
               text: data.activityType.validate().replaceAll('_', ' ').capitalizeFirstLetter(),
             ),
             Text(
-              data.activityMessage.validate().replaceAll('_', ' ').capitalizeFirstLetter(),
+              data.activityMessage.validate().replaceAll('_', ' '),
               style: secondaryTextStyle(),
             ).paddingOnly(left: 4),
           ],

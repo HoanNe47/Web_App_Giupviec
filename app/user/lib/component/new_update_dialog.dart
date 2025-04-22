@@ -1,15 +1,19 @@
 import 'dart:io';
 
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/configs.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/configs.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class NewUpdateDialog extends StatelessWidget {
+  final bool canClose;
+
+  const NewUpdateDialog({super.key, this.canClose = true});
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -23,56 +27,61 @@ class NewUpdateDialog extends StatelessWidget {
             listAnimationType: ListAnimationType.FadeIn,
             children: [
               60.height,
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(language.lblNewUpdate, style: boldTextStyle(size: 20)),
-                  Text(isAndroid ? remoteConfigDataModel.android!.versionName.validate() : remoteConfigDataModel.iOS!.versionName.validate(), style: boldTextStyle()),
-                ],
-              ),
+              Text(language.lblNewUpdate, style: boldTextStyle(size: 18)),
               8.height,
-              Text('${language.lblAnUpdateTo} $APP_NAME ${language.lblIsAvailableWouldYouLike}', style: secondaryTextStyle(size: 12), textAlign: TextAlign.left),
-              24.height,
-              UL(
-                children: remoteConfigDataModel.changeLogs!.map((e) {
-                  return Text(e.validate(), style: primaryTextStyle(size: 14));
-                }).toList(),
+              Text(
+                '${language.lblAnUpdateTo} $APP_NAME ${language.isAvailableGoTo}',
+                style: secondaryTextStyle(),
+                textAlign: TextAlign.left,
               ),
               24.height,
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   AppButton(
-                    child: Text(language.lblCancel, style: boldTextStyle(color: primaryColor)),
+                    text: canClose ? language.later : language.closeApp,
+                    textStyle: boldTextStyle(color: primaryColor, size: 14),
                     shapeBorder: RoundedRectangleBorder(borderRadius: radius(), side: BorderSide(color: primaryColor)),
                     elevation: 0,
                     onTap: () async {
-                      if (remoteConfigDataModel.isForceUpdate!) {
-                        exit(0);
-                      } else {
+                      if (canClose) {
                         finish(context);
+                      } else {
+                        exit(0);
                       }
                     },
                   ).expand(),
-                  16.width,
+                  32.width,
                   AppButton(
-                    child: Text(language.lblUpdate, style: boldTextStyle(color: white)),
+                    text: language.lblUpdate,
+                    textStyle: boldTextStyle(color: Colors.white),
                     shapeBorder: RoundedRectangleBorder(borderRadius: radius()),
                     color: primaryColor,
                     elevation: 0,
                     onTap: () async {
-                      getPackageName().then((value) {
-                        String package = '';
-                        if (isAndroid) package = value;
+                      getPackageName().then((value) async {
+                        if (isAndroid) {
+                          String package = '';
+                          package = value;
 
-                        commonLaunchUrl(
-                          '${isAndroid ? getSocialMediaLink(LinkProvider.PLAY_STORE) : getSocialMediaLink(LinkProvider.APPSTORE)}$package',
-                          launchMode: LaunchMode.externalApplication,
-                        );
+                          commonLaunchUrl(
+                            '${getSocialMediaLink(LinkProvider.PLAY_STORE)}$package',
+                            launchMode: LaunchMode.externalApplication,
+                          );
 
-                        if (remoteConfigDataModel.isForceUpdate!) {
-                          exit(0);
-                        } else {
-                          finish(context);
+                          if (canClose) {
+                            finish(context);
+                          } else {
+                            exit(0);
+                          }
+                        } else if (isIOS) {
+                          await launchUrl(Uri.parse(IOS_LINK_FOR_USER));
+                          if (canClose) {
+                            finish(context);
+                          } else {
+                            exit(0);
+                          }
                         }
                       });
                     },

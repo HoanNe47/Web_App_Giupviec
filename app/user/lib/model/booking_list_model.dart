@@ -1,5 +1,5 @@
-import 'package:actcms_spa_flutter/model/booking_data_model.dart';
-import 'package:actcms_spa_flutter/model/user_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/booking_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/user_data_model.dart';
 
 import 'pagination_model.dart';
 

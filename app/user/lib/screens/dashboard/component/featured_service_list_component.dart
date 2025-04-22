@@ -1,11 +1,12 @@
-import 'package:actcms_spa_flutter/component/view_all_label_component.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/service_data_model.dart';
-import 'package:actcms_spa_flutter/screens/service/component/service_component.dart';
-import 'package:actcms_spa_flutter/screens/service/search_list_screen.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/view_all_label_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/service/component/service_component.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../../component/empty_error_state_widget.dart';
+import '../../service/view_all_service_screen.dart';
 
 class FeaturedServiceListComponent extends StatelessWidget {
   final List<ServiceData> serviceList;
@@ -20,7 +21,7 @@ class FeaturedServiceListComponent extends StatelessWidget {
       padding: EdgeInsets.only(bottom: 16),
       width: context.width(),
       decoration: BoxDecoration(
-        color: appStore.isDarkMode ? context.cardColor : context.primaryColor.withOpacity(0.1),
+        color: appStore.isDarkMode ? context.cardColor : context.primaryColor.withValues(alpha:0.1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -30,7 +31,7 @@ class FeaturedServiceListComponent extends StatelessWidget {
             label: language.lblFeatured,
             list: serviceList,
             onTap: () {
-              SearchListScreen(isFeatured: "1").launch(context);
+              ViewAllServiceScreen(isFeatured: "1").launch(context);
             },
           ).paddingSymmetric(horizontal: 16),
           if (serviceList.isNotEmpty)
@@ -43,12 +44,9 @@ class FeaturedServiceListComponent extends StatelessWidget {
           else
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 32),
-              child: Column(
-                children: [
-                  Image.asset(notDataFoundImg, height: 126),
-                  32.height,
-                  Text(language.lblNoServicesFound, style: boldTextStyle()),
-                ],
+              child: NoDataWidget(
+                title: language.lblNoServicesFound,
+                imageWidget: EmptyStateWidget(),
               ),
             ).center(),
         ],

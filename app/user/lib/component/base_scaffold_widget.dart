@@ -1,7 +1,9 @@
-import 'package:actcms_spa_flutter/component/back_widget.dart';
-import 'package:actcms_spa_flutter/component/base_scaffold_body.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/back_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/base_scaffold_body.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../utils/constant.dart';
 
 class AppScaffold extends StatelessWidget {
   final String? appBarTitle;
@@ -9,22 +11,33 @@ class AppScaffold extends StatelessWidget {
 
   final Widget child;
   final Color? scaffoldBackgroundColor;
+  final Widget? bottomNavigationBar;
+  final bool showLoader;
 
-  AppScaffold({this.appBarTitle, required this.child, this.actions, this.scaffoldBackgroundColor});
+  AppScaffold({
+    this.appBarTitle,
+    required this.child,
+    this.actions,
+    this.scaffoldBackgroundColor,
+    this.bottomNavigationBar,
+    this.showLoader = true,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: appBarWidget(
-        appBarTitle.validate(),
-        textColor: white,
-        elevation: 0.0,
-        color: context.primaryColor,
-        backWidget: BackWidget(),
-        actions: actions,
-      ),
+      appBar: appBarTitle != null
+          ? AppBar(
+              title: Text(appBarTitle.validate(), style: boldTextStyle(color: Colors.white, size: APP_BAR_TEXT_SIZE)),
+              elevation: 0.0,
+              backgroundColor: context.primaryColor,
+              leading: context.canPop ? BackWidget() : null,
+              actions: actions,
+            )
+          : null,
       backgroundColor: scaffoldBackgroundColor,
-      body: Body(child: child),
+      body: Body(child: child, showLoader: showLoader),
+      bottomNavigationBar: bottomNavigationBar,
     );
   }
 }

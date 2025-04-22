@@ -1,42 +1,117 @@
-import 'package:actcms_spa_flutter/app_theme.dart';
-import 'package:actcms_spa_flutter/locale/app_localizations.dart';
-import 'package:actcms_spa_flutter/locale/languages_vi.dart';
-import 'package:actcms_spa_flutter/locale/languages.dart';
-import 'package:actcms_spa_flutter/model/material_you_model.dart';
-import 'package:actcms_spa_flutter/model/remote_config_data_model.dart';
-import 'package:actcms_spa_flutter/screens/splash_screen.dart';
-import 'package:actcms_spa_flutter/services/auth_services.dart';
-import 'package:actcms_spa_flutter/services/chat_messages_service.dart';
-import 'package:actcms_spa_flutter/services/user_services.dart';
-import 'package:actcms_spa_flutter/store/app_store.dart';
-import 'package:actcms_spa_flutter/store/filter_store.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/configs.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/app_theme.dart';
+import 'package:giup_viec_nha_app_user_flutter/locale/app_localizations.dart';
+import 'package:giup_viec_nha_app_user_flutter/locale/language_vi.dart';
+import 'package:giup_viec_nha_app_user_flutter/locale/languages.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/booking_detail_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/get_my_post_job_list_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/material_you_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/notification_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/provider_info_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/remote_config_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_detail_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/user_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/user_wallet_history.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/blog/model/blog_detail_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/blog/model/blog_response_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/helpDesk/model/help_desk_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/splash_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/services/auth_services.dart';
+import 'package:giup_viec_nha_app_user_flutter/services/chat_services.dart';
+import 'package:giup_viec_nha_app_user_flutter/services/user_services.dart';
+import 'package:giup_viec_nha_app_user_flutter/store/app_configuration_store.dart';
+import 'package:giup_viec_nha_app_user_flutter/store/app_store.dart';
+import 'package:giup_viec_nha_app_user_flutter/store/filter_store.dart';
+import 'package:giup_viec_nha_app_user_flutter/store/roles_and_permission_store.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/configs.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/firebase_messaging_utils.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:nb_utils/nb_utils.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
 
+import 'model/bank_list_response.dart';
+import 'model/booking_data_model.dart';
+import 'model/booking_status_model.dart';
+import 'model/category_model.dart';
+import 'model/coupon_list_model.dart';
+import 'model/dashboard_model.dart';
+import 'dart:io';
+
+//region Handle Background Firebase Message
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  log('Message Data : ${message.data}');
+  await Firebase.initializeApp().then((value) {}).catchError((e) {});
+}
+
+//endregion
+//region Mobx Stores
 AppStore appStore = AppStore();
 FilterStore filterStore = FilterStore();
+AppConfigurationStore appConfigurationStore = AppConfigurationStore();
+RolesAndPermissionStore rolesAndPermissionStore = RolesAndPermissionStore();
+//endregion
+
+//region Global Variables
 BaseLanguage language = LanguageVi();
+//endregion
 
+//region Services
 UserService userService = UserService();
-AuthServices authService = AuthServices();
-ChatMessageService chatMessageService = ChatMessageService();
-
+AuthService authService = AuthService();
+ChatServices chatServices = ChatServices();
 RemoteConfigDataModel remoteConfigDataModel = RemoteConfigDataModel();
+//endregion
 
-String currentPackageName = '';
+//region Cached Response Variables for Dashboard Tabs
+DashboardResponse? cachedDashboardResponse;
+List<BookingData>? cachedBookingList;
+List<CategoryData>? cachedCategoryList;
+List<BookingStatusResponse>? cachedBookingStatusDropdown;
+List<PostJobData>? cachedPostJobList;
+List<WalletDataElement>? cachedWalletHistoryList;
+
+List<ServiceData>? cachedServiceFavList;
+List<UserData>? cachedProviderFavList;
+List<UserData>? cachedHandymanList;
+List<BlogData>? cachedBlogList;
+List<RatingData>? cachedRatingList;
+List<HelpDeskListData>? cachedHelpDeskListData;
+List<NotificationData>? cachedNotificationList;
+CouponListResponse? cachedCouponListResponse;
+List<BankHistory>? cachedBankList;
+List<(int blogId, BlogDetailResponse list)?> cachedBlogDetail = [];
+List<(int serviceId, ServiceDetailResponse list)?> listOfCachedData = [];
+List<(int providerId, ProviderInfoResponse list)?> cachedProviderList = [];
+List<(int categoryId, List<CategoryData> list)?> cachedSubcategoryList = [];
+List<(int bookingId, BookingDetailResponse list)?> cachedBookingDetailList = [];
+//endregion
+
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp().then((value) {
+    /// Firebase Notification
+    initFirebaseMessaging();
+    if (kReleaseMode) {
+      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    }
+  });
 
   passwordLengthGlobal = 6;
   appButtonBackgroundColorGlobal = primaryColor;
@@ -44,70 +119,28 @@ void main() async {
   defaultRadius = 12;
   defaultBlurRadius = 0;
   defaultSpreadRadius = 0;
-  textSecondaryColorGlobal = appTextPrimaryColor;
-  textPrimaryColorGlobal = appTextSecondaryColor;
+  textSecondaryColorGlobal = appTextSecondaryColor;
+  textPrimaryColorGlobal = appTextPrimaryColor;
   defaultAppButtonElevation = 0;
   pageRouteTransitionDurationGlobal = 400.milliseconds;
+  textBoldSizeGlobal = 14;
+  textPrimarySizeGlobal = 14;
+  textSecondarySizeGlobal = 12;
 
   await initialize();
   localeLanguageList = languageList();
 
-  Stripe.publishableKey = STRIPE_PAYMENT_PUBLISH_KEY;
-
-  Firebase.initializeApp().then((value) {
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-
-    setupFirebaseRemoteConfig();
-  });
-
-  await appStore.setLanguage(getStringAsync(SELECTED_LANGUAGE_CODE, defaultValue: DEFAULT_LANGUAGE));
-  await appStore.setLoggedIn(getBoolAsync(IS_LOGGED_IN), isInitializing: true);
-
-  int themeModeIndex = getIntAsync(THEME_MODE_INDEX);
+  int themeModeIndex = getIntAsync(THEME_MODE_INDEX, defaultValue: THEME_MODE_SYSTEM);
   if (themeModeIndex == THEME_MODE_LIGHT) {
     appStore.setDarkMode(false);
   } else if (themeModeIndex == THEME_MODE_DARK) {
     appStore.setDarkMode(true);
   }
 
-  OneSignal.shared.setAppId(ONESIGNAL_APP_ID).then((value) {
-    OneSignal.shared.setNotificationWillShowInForegroundHandler((OSNotificationReceivedEvent event) {
-      event.complete(event.notification);
-    });
+  defaultToastBackgroundColor = appStore.isDarkMode ? Colors.white : Colors.black;
+  defaultToastTextColor = appStore.isDarkMode ? Colors.black : Colors.white;
 
-    OneSignal.shared.consentGranted(true);
-    OneSignal.shared.promptUserForPushNotificationPermission();
-    OneSignal.shared.sendTag(ONESIGNAL_TAG_KEY, ONESIGNAL_TAG_VALUE);
-
-    saveOneSignalPlayerId();
-  });
-
-  await appStore.setUseMaterialYouTheme(getBoolAsync(USE_MATERIAL_YOU_THEME), isInitializing: true);
-
-  if (appStore.isLoggedIn) {
-    await appStore.setUserId(getIntAsync(USER_ID), isInitializing: true);
-    await appStore.setFirstName(getStringAsync(FIRST_NAME), isInitializing: true);
-    await appStore.setLastName(getStringAsync(LAST_NAME), isInitializing: true);
-    await appStore.setUserEmail(getStringAsync(USER_EMAIL), isInitializing: true);
-    await appStore.setUserName(getStringAsync(USERNAME), isInitializing: true);
-    await appStore.setContactNumber(getStringAsync(CONTACT_NUMBER), isInitializing: true);
-    await appStore.setUserProfile(getStringAsync(PROFILE_IMAGE), isInitializing: true);
-    await appStore.setCountryId(getIntAsync(COUNTRY_ID), isInitializing: true);
-    await appStore.setStateId(getIntAsync(STATE_ID), isInitializing: true);
-    await appStore.setCityId(getIntAsync(COUNTRY_ID), isInitializing: true);
-    await appStore.setUId(getStringAsync(UID), isInitializing: true);
-    await appStore.setToken(getStringAsync(TOKEN), isInitializing: true);
-    await appStore.setAddress(getStringAsync(ADDRESS), isInitializing: true);
-    await appStore.setCurrencyCode(getStringAsync(CURRENCY_COUNTRY_CODE), isInitializing: true);
-    await appStore.setCurrencyCountryId(getStringAsync(CURRENCY_COUNTRY_ID), isInitializing: true);
-    await appStore.setCurrencySymbol(getStringAsync(CURRENCY_COUNTRY_SYMBOL), isInitializing: true);
-    await appStore.setPrivacyPolicy(getStringAsync(PRIVACY_POLICY), isInitializing: true);
-    await appStore.setLoginType(getStringAsync(LOGIN_TYPE), isInitializing: true);
-    await appStore.setTermConditions(getStringAsync(TERM_CONDITIONS), isInitializing: true);
-    await appStore.setInquiryEmail(getStringAsync(INQUIRY_EMAIL), isInitializing: true);
-    await appStore.setHelplineNumber(getStringAsync(HELPLINE_NUMBER), isInitializing: true);
-  }
-
+  HttpOverrides.global = MyHttpOverrides();
   runApp(MyApp());
 }
 
@@ -150,6 +183,12 @@ class _MyAppState extends State<MyApp> {
                   GlobalWidgetsLocalizations.delegate,
                   GlobalCupertinoLocalizations.delegate,
                 ],
+                builder: (context, child) {
+                  return MediaQuery(
+                    child: child!,
+                    data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
+                  );
+                },
                 localeResolutionCallback: (locale, supportedLocales) => locale,
                 locale: Locale(appStore.selectedLanguageCode),
               ),

@@ -1,12 +1,15 @@
-import 'package:actcms_spa_flutter/locale/app_localizations.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/booking_status_model.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/configs.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/locale/app_localizations.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/configs.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobx/mobx.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../network/rest_apis.dart';
+import '../utils/common.dart';
 
 part 'app_store.g.dart';
 
@@ -14,7 +17,7 @@ class AppStore = _AppStore with _$AppStore;
 
 abstract class _AppStore with Store {
   @observable
-  bool isLoggedIn = false;
+  bool isLoggedIn = getBoolAsync(IS_LOGGED_IN);
 
   @observable
   bool isDarkMode = false;
@@ -23,52 +26,34 @@ abstract class _AppStore with Store {
   bool isLoading = false;
 
   @observable
-  bool isFavorite = false;
+  bool isCurrentLocation = getBoolAsync(IS_CURRENT_LOCATION);
 
   @observable
-  bool isCurrentLocation = false;
+  String selectedLanguageCode = getStringAsync(SELECTED_LANGUAGE_CODE, defaultValue: DEFAULT_LANGUAGE);
 
   @observable
-  bool isRememberMe = false;
+  String userProfileImage = getStringAsync(PROFILE_IMAGE);
 
   @observable
-  String selectedLanguageCode = DEFAULT_LANGUAGE;
+  String loginType = getStringAsync(LOGIN_TYPE);
 
   @observable
-  String userProfileImage = '';
+  String userFirstName = getStringAsync(FIRST_NAME);
 
   @observable
-  String privacyPolicy = '';
+  String userLastName = getStringAsync(LAST_NAME);
 
   @observable
-  String loginType = '';
+  String uid = getStringAsync(UID);
 
   @observable
-  String termConditions = '';
+  String userContactNumber = getStringAsync(CONTACT_NUMBER);
 
   @observable
-  String inquiryEmail = '';
+  String userEmail = getStringAsync(USER_EMAIL);
 
   @observable
-  String helplineNumber = '';
-
-  @observable
-  String userFirstName = '';
-
-  @observable
-  String userLastName = '';
-
-  @observable
-  String uid = '';
-
-  @observable
-  String userContactNumber = '';
-
-  @observable
-  String userEmail = '';
-
-  @observable
-  String userName = '';
+  String userName = getStringAsync(USERNAME);
 
   @observable
   double latitude = 0.0;
@@ -77,223 +62,210 @@ abstract class _AppStore with Store {
   double longitude = 0.0;
 
   @observable
-  String currentAddress = '';
+  String token = getStringAsync(TOKEN);
 
   @observable
-  String token = '';
+  int countryId = getIntAsync(COUNTRY_ID);
 
   @observable
-  int countryId = 0;
+  int stateId = getIntAsync(STATE_ID);
 
   @observable
-  int stateId = 0;
+  int cityId = getIntAsync(COUNTRY_ID);
 
   @observable
-  String currencySymbol = '';
-
-  @observable
-  String currencyCode = '';
-
-  BookingStatusResponse? selectedStatus;
-
-  @observable
-  String currencyCountryId = '';
-
-  @observable
-  int cityId = 0;
-
-  @observable
-  String address = '';
-
-  @observable
-  String playerId = '';
+  String address = getStringAsync(ADDRESS);
 
   @computed
   String get userFullName => '$userFirstName $userLastName'.trim();
 
   @observable
-  int? userId = -1;
+  int userId = getIntAsync(USER_ID);
 
   @observable
-  int? unreadCount = 0;
+  int unreadCount = 0;
 
   @observable
-  bool useMaterialYouTheme = true;
+  bool useMaterialYouTheme = getBoolAsync(USE_MATERIAL_YOU_THEME);
 
   @observable
-  String userType = '';
+  String userType = getStringAsync(USER_TYPE);
+
+  @observable
+  bool is24HourFormat = getBoolAsync(HOUR_FORMAT_STATUS);
+
+  @observable
+  num userWalletAmount = 0.0;
+
+  @observable
+  bool isSubscribedForPushNotification = getBoolAsync(IS_SUBSCRIBED_FOR_PUSH_NOTIFICATION, defaultValue: true);
+
+  @observable
+  bool isSpeechActivated = false;
+
+  @observable
+  double expansionDynamicHeight = 65;
+
+  @observable
+  LanguageDataModel selectedLanguage = languageList().first;
+
+  @observable
+  bool isHelpDeskFirstTime = getBoolAsync(IS_HELP_DESK_FIRST_TIME, defaultValue: true);
 
   @action
-  Future<void> setUseMaterialYouTheme(bool val, {bool isInitializing = false}) async {
+  void setExpansionDynamicHeight(double val) {
+    expansionDynamicHeight = val;
+  }
+
+  @action
+  void setSelectedLanguage(LanguageDataModel val) {
+    selectedLanguage = val;
+  }
+
+  @action
+  Future<void> setIsHelpDeskFirstTime(bool val) async {
+    isHelpDeskFirstTime = val;
+    await setValue(IS_HELP_DESK_FIRST_TIME, isHelpDeskFirstTime);
+  }
+
+  @action
+  void setSpeechStatus(bool val) {
+    isSpeechActivated = val;
+  }
+
+  @action
+  Future<void> setPushNotificationSubscriptionStatus(bool val) async {
+    isSubscribedForPushNotification = val;
+    await setValue(IS_SUBSCRIBED_FOR_PUSH_NOTIFICATION, val);
+  }
+
+  @action
+  Future<void> setUserWalletAmount() async {
+    if (isLoggedIn) {
+      userWalletAmount = await getUserWalletBalance();
+    } else {
+      userWalletAmount = 0.0;
+    }
+  }
+
+  @action
+  Future<void> set24HourFormat(bool val) async {
+    is24HourFormat = val;
+    await setValue(HOUR_FORMAT_STATUS, val);
+  }
+
+  @action
+  Future<void> setUseMaterialYouTheme(bool val) async {
     useMaterialYouTheme = val;
-    if (!isInitializing) await setValue(USE_MATERIAL_YOU_THEME, val);
+    await setValue(USE_MATERIAL_YOU_THEME, val);
   }
 
   @action
-  Future<void> setPlayerId(String val, {bool isInitializing = false}) async {
-    playerId = val;
-    if (!isInitializing) await setValue(PLAYERID, val);
-  }
-
-  @action
-  Future<void> setUserType(String val, {bool isInitializing = false}) async {
+  Future<void> setUserType(String val) async {
     userType = val;
-    if (!isInitializing) await setValue(USER_TYPE, val);
+    await setValue(USER_TYPE, val);
   }
 
   @action
-  Future<void> setAddress(String val, {bool isInitializing = false}) async {
+  Future<void> setAddress(String val) async {
     address = val;
-    if (!isInitializing) await setValue(ADDRESS, val);
+    await setValue(ADDRESS, val);
   }
 
   @action
-  Future<void> setUserProfile(String val, {bool isInitializing = false}) async {
+  Future<void> setUserProfile(String val) async {
     userProfileImage = val;
-    if (!isInitializing) await setValue(PROFILE_IMAGE, val);
+    await setValue(PROFILE_IMAGE, val);
   }
 
   @action
-  Future<void> setPrivacyPolicy(String val, {bool isInitializing = false}) async {
-    privacyPolicy = val;
-    if (!isInitializing) await setValue(PRIVACY_POLICY, val);
-  }
-
-  @action
-  Future<void> setLoginType(String val, {bool isInitializing = false}) async {
+  Future<void> setLoginType(String val) async {
     loginType = val;
-    if (!isInitializing) await setValue(LOGIN_TYPE, val);
+    await setValue(LOGIN_TYPE, val);
   }
 
   @action
-  Future<void> setTermConditions(String val, {bool isInitializing = false}) async {
-    termConditions = val;
-    if (!isInitializing) await setValue(TERM_CONDITIONS, val);
-  }
-
-  @action
-  Future<void> setInquiryEmail(String val, {bool isInitializing = false}) async {
-    inquiryEmail = val;
-    if (!isInitializing) await setValue(INQUIRY_EMAIL, val);
-  }
-
-  @action
-  Future<void> setHelplineNumber(String val, {bool isInitializing = false}) async {
-    helplineNumber = val;
-    if (!isInitializing) await setValue(HELPLINE_NUMBER, val);
-  }
-
-  @action
-  Future<void> setToken(String val, {bool isInitializing = false}) async {
+  Future<void> setToken(String val) async {
     token = val;
-    if (!isInitializing) await setValue(TOKEN, val);
+    await setValue(TOKEN, val);
   }
 
   @action
-  Future<void> setCountryId(int val, {bool isInitializing = false}) async {
+  Future<void> setCountryId(int val) async {
     countryId = val;
-    if (!isInitializing) await setValue(COUNTRY_ID, val);
+    await setValue(COUNTRY_ID, val);
   }
 
   @action
-  Future<void> setBookingSelectedStatus(BookingStatusResponse val) async {
-    selectedStatus = val;
-  }
-
-  @action
-  Future<void> setStateId(int val, {bool isInitializing = false}) async {
+  Future<void> setStateId(int val) async {
     stateId = val;
-    if (!isInitializing) await setValue(STATE_ID, val);
+    await setValue(STATE_ID, val);
   }
 
   @action
-  Future<void> setCurrencySymbol(String val, {bool isInitializing = false}) async {
-    currencySymbol = val;
-    if (!isInitializing) await setValue(CURRENCY_COUNTRY_SYMBOL, val);
-  }
-
-  @action
-  Future<void> setCurrencyCode(String val, {bool isInitializing = false}) async {
-    currencyCode = val;
-    if (!isInitializing) await setValue(CURRENCY_COUNTRY_CODE, val);
-  }
-
-  @action
-  Future<void> setCurrencyCountryId(String val, {bool isInitializing = false}) async {
-    currencyCountryId = val;
-    if (!isInitializing) await setValue(CURRENCY_COUNTRY_ID, val);
-  }
-
-  @action
-  Future<void> setUId(String val, {bool isInitializing = false}) async {
+  Future<void> setUId(String val) async {
     uid = val;
-    if (!isInitializing) await setValue(UID, val);
+    await setValue(UID, val);
   }
 
   @action
-  Future<void> setCityId(int val, {bool isInitializing = false}) async {
+  Future<void> setCityId(int val) async {
     cityId = val;
-    if (!isInitializing) await setValue(CITY_ID, val);
+    await setValue(CITY_ID, val);
   }
 
   @action
-  Future<void> setUserId(int val, {bool isInitializing = false}) async {
+  Future<void> setUserId(int val) async {
     userId = val;
-    if (!isInitializing) await setValue(USER_ID, val);
+    await setValue(USER_ID, val);
   }
 
   @action
-  Future<void> setUserEmail(String val, {bool isInitializing = false}) async {
+  Future<void> setUserEmail(String val) async {
     userEmail = val;
-    if (!isInitializing) await setValue(USER_EMAIL, val);
+    await setValue(USER_EMAIL, val);
   }
 
   @action
-  Future<void> setFirstName(String val, {bool isInitializing = false}) async {
+  Future<void> setFirstName(String val) async {
     userFirstName = val;
-    if (!isInitializing) await setValue(FIRST_NAME, val);
+    await setValue(FIRST_NAME, val);
   }
 
   @action
-  Future<void> setLastName(String val, {bool isInitializing = false}) async {
+  Future<void> setLastName(String val) async {
     userLastName = val;
-    if (!isInitializing) await setValue(LAST_NAME, val);
+    await setValue(LAST_NAME, val);
   }
 
   @action
-  Future<void> setContactNumber(String val, {bool isInitializing = false}) async {
+  Future<void> setContactNumber(String val) async {
     userContactNumber = val;
-    if (!isInitializing) await setValue(CONTACT_NUMBER, val);
+    await setValue(CONTACT_NUMBER, val);
   }
 
   @action
-  Future<void> setUserName(String val, {bool isInitializing = false}) async {
+  Future<void> setUserName(String val) async {
     userName = val;
-    if (!isInitializing) await setValue(USERNAME, val);
+    await setValue(USERNAME, val);
   }
 
   @action
-  Future<void> setCurrentAddress(String val, {bool isInitializing = false}) async {
-    currentAddress = val;
-    if (!isInitializing) await setValue(CURRENT_ADDRESS, val);
-  }
-
-  @action
-  Future<void> setLatitude(double val, {bool isInitializing = false}) async {
+  Future<void> setLatitude(double val) async {
     latitude = val;
     await setValue(LATITUDE, val);
   }
 
   @action
-  Future<void> setLongitude(double val, {bool isInitializing = false}) async {
+  Future<void> setLongitude(double val) async {
     longitude = val;
     await setValue(LONGITUDE, val);
   }
 
   @action
-  Future<void> setLoggedIn(bool val, {bool isInitializing = false}) async {
+  Future<void> setLoggedIn(bool val) async {
     isLoggedIn = val;
-    if (!isInitializing) await setValue(IS_LOGGED_IN, val);
+    await setValue(IS_LOGGED_IN, val);
   }
 
   @action
@@ -302,24 +274,14 @@ abstract class _AppStore with Store {
   }
 
   @action
-  void setFavorite(bool val) {
-    isFavorite = val;
-  }
-
-  @action
-  Future<void> setCurrentLocation(bool val, {bool isInitializing = false}) async {
+  Future<void> setCurrentLocation(bool val) async {
     isCurrentLocation = val;
-    if (!isInitializing) await setValue(IS_CURRENT_LOCATION, val);
+    await setValue(IS_CURRENT_LOCATION, val);
   }
 
   @action
   void setUnreadCount(int val) {
     unreadCount = val;
-  }
-
-  @action
-  void setRemember(bool val) {
-    isRememberMe = val;
   }
 
   @action
@@ -332,12 +294,22 @@ abstract class _AppStore with Store {
       defaultLoaderBgColorGlobal = scaffoldSecondaryDark;
       appButtonBackgroundColorGlobal = appButtonColorDark;
       shadowColorGlobal = Colors.white12;
+      SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+        systemNavigationBarColor: scaffoldColorDark,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ));
     } else {
       textPrimaryColorGlobal = textPrimaryColor;
       textSecondaryColorGlobal = textSecondaryColor;
       defaultLoaderBgColorGlobal = Colors.white;
       appButtonBackgroundColorGlobal = Colors.white;
       shadowColorGlobal = Colors.black12;
+      SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ));
     }
   }
 
@@ -349,6 +321,10 @@ abstract class _AppStore with Store {
     await setValue(SELECTED_LANGUAGE_CODE, selectedLanguageCode);
 
     language = await AppLocalizations().load(Locale(selectedLanguageCode));
-    // errorInternetNotAvailable=language.errorInternetNotAvailable;
+
+    errorMessage = language.pleaseTryAgain;
+    errorSomethingWentWrong = language.somethingWentWrong;
+    errorThisFieldRequired = language.requiredText;
+    errorInternetNotAvailable = language.internetNotAvailable;
   }
 }

@@ -1,9 +1,7 @@
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/extensions/num_extenstions.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:nb_utils/nb_utils.dart';
 
 class PriceWidget extends StatelessWidget {
@@ -16,6 +14,7 @@ class PriceWidget extends StatelessWidget {
   final bool isDiscountedPrice;
   final bool isHourlyService;
   final bool isFreeService;
+  final int? decimalPoint;
 
   PriceWidget({
     required this.price,
@@ -27,6 +26,7 @@ class PriceWidget extends StatelessWidget {
     this.isDiscountedPrice = false,
     this.isHourlyService = false,
     this.isFreeService = false,
+    this.decimalPoint,
   });
 
   @override
@@ -37,45 +37,43 @@ class PriceWidget extends StatelessWidget {
       return isBoldText
           ? boldTextStyle(
               size: aSize ?? size!.toInt(),
-              color: color != null ? color : primaryColor,
+              color: color ?? primaryColor,
               decoration: textDecoration(),
+              textDecorationStyle: TextDecorationStyle.solid
             )
           : secondaryTextStyle(
               size: aSize ?? size!.toInt(),
-              color: color != null ? color : primaryColor,
+              color: color ?? primaryColor,
               decoration: textDecoration(),
+              textDecorationStyle: TextDecorationStyle.solid,
             );
     }
 
-    return Observer(
-      builder: (context) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.start,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Text(
+          "${isDiscountedPrice ? ' -' : ''}",
+          style: _textStyle(),
+        ),
+        Row(
           children: [
-            Text(
-              "${isDiscountedPrice ? ' -' : ''}",
-              style: _textStyle(),
-            ),
-            Row(
-              children: [
-                if (isFreeService)
-                  Text(language.lblFree, style: _textStyle())
-                else
-                  Text(
-                    "${isCurrencyPositionLeft ? appStore.currencySymbol : ''}${price.validate().toStringAsFixed(DECIMAL_POINT).formatNumberWithComma()}${isCurrencyPositionRight ? appStore.currencySymbol : ''}",
-                    style: _textStyle(),
-                  ),
-                if (isHourlyService)
-                  Text(
-                    '/${language.lblHr}',
-                    style: secondaryTextStyle(color: hourlyTextColor, size: 14),
-                  ),
-              ],
-            ),
+            if (isFreeService)
+              Text(language.lblFree, style: _textStyle())
+            else
+              Text(
+                price.toPriceFormat(),
+                style: _textStyle(),
+              ),
+            if (isHourlyService)
+              Text(
+                '/${language.lblHr}',
+                style: secondaryTextStyle(color: hourlyTextColor, size: 12),
+              ),
           ],
-        );
-      },
+        ),
+      ],
     );
   }
 }

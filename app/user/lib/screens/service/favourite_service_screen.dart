@@ -1,13 +1,16 @@
-import 'package:actcms_spa_flutter/component/back_widget.dart';
-import 'package:actcms_spa_flutter/component/background_component.dart';
-import 'package:actcms_spa_flutter/component/loader_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/service_data_model.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/screens/service/component/service_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/back_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/loader_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/service/component/service_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/service/shimmer/favourite_service_shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../component/empty_error_state_widget.dart';
+import '../../utils/constant.dart';
 
 class FavouriteServiceScreen extends StatefulWidget {
   const FavouriteServiceScreen({Key? key}) : super(key: key);
@@ -17,8 +20,6 @@ class FavouriteServiceScreen extends StatefulWidget {
 }
 
 class _FavouriteServiceScreenState extends State<FavouriteServiceScreen> {
-  ScrollController scrollController = ScrollController();
-
   Future<List<ServiceData>>? future;
 
   List<ServiceData> services = [];
@@ -34,7 +35,9 @@ class _FavouriteServiceScreenState extends State<FavouriteServiceScreen> {
   }
 
   Future<void> init() async {
-    future = getWishlist(page, services: services, lastPageCallBack: (p0) => isLastPage = p0);
+    future = getWishlist(page, services: services, lastPageCallBack: (p0) {
+      isLastPage = p0;
+    });
   }
 
   Widget build(BuildContext context) {
@@ -44,36 +47,56 @@ class _FavouriteServiceScreenState extends State<FavouriteServiceScreen> {
         color: context.primaryColor,
         textColor: white,
         backWidget: BackWidget(),
+        textSize: APP_BAR_TEXT_SIZE,
       ),
       body: Stack(
         children: [
           FutureBuilder<List<ServiceData>>(
             future: future,
+            initialData: cachedServiceFavList,
             builder: (context, snap) {
               if (snap.hasData) {
-                if (snap.data.validate().isEmpty) return BackgroundComponent(text: language.lblNoServicesFound);
+                if (snap.data.validate().isEmpty)
+                  return NoDataWidget(
+                    title: language.lblNoServicesFound,
+                    subTitle: language.noFavouriteSubTitle,
+                    imageWidget: EmptyStateWidget(),
+                  );
 
                 return AnimatedScrollView(
                   padding: EdgeInsets.fromLTRB(16, 16, 16, 60),
+                  listAnimationType: ListAnimationType.FadeIn,
+                  fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
+                  physics: AlwaysScrollableScrollPhysics(),
                   onNextPage: () {
                     if (!isLastPage) {
                       page++;
+                      appStore.setLoading(true);
+
                       init();
                       setState(() {});
                     }
                   },
-                  controller: scrollController,
+                  onSwipeRefresh: () async {
+                    page = 1;
+
+                    init();
+                    setState(() {});
+
+                    return await 2.seconds.delay;
+                  },
                   children: [
                     AnimatedWrap(
                       spacing: 16,
                       runSpacing: 16,
-                      listAnimationType: ListAnimationType.Scale,
+                      listAnimationType: ListAnimationType.FadeIn,
+                      fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
                       scaleConfiguration: ScaleConfiguration(duration: 300.milliseconds, delay: 50.milliseconds),
                       itemCount: snap.data!.length,
                       itemBuilder: (_, index) {
                         return ServiceComponent(
                           serviceData: snap.data![index],
-                          width: context.width() / 2 - 24,
+                          width: appConfigurationStore.userDashboardType == DEFAULT_USER_DASHBOARD ? context.width() / 2 - 24 : context.width(),
                           isFavouriteService: true,
                           onUpdate: () async {
                             page = 1;
@@ -87,15 +110,27 @@ class _FavouriteServiceScreenState extends State<FavouriteServiceScreen> {
                 );
               }
 
-              return snapWidgetHelper(snap, loadingWidget: LoaderWidget());
+              return snapWidgetHelper(
+                snap,
+                loadingWidget: FavouriteServiceShimmer(),
+                errorBuilder: (error) {
+                  return NoDataWidget(
+                    title: error,
+                    imageWidget: ErrorStateWidget(),
+                    retryText: language.reload,
+                    onRetry: () {
+                      page = 1;
+                      appStore.setLoading(true);
+
+                      init();
+                      setState(() {});
+                    },
+                  );
+                },
+              );
             },
           ),
-          Positioned(
-            bottom: 8,
-            left: 0,
-            right: 0,
-            child: Observer(builder: (context) => LoaderWidget().visible(appStore.isLoading && page != 1)),
-          ),
+          Observer(builder: (context) => LoaderWidget().visible(appStore.isLoading)),
         ],
       ),
     );

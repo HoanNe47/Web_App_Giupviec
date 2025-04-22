@@ -1,67 +1,83 @@
-import 'package:actcms_spa_flutter/component/back_widget.dart';
-import 'package:actcms_spa_flutter/component/loader_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/booking_detail_model.dart';
-import 'package:actcms_spa_flutter/model/dashboard_model.dart';
-import 'package:actcms_spa_flutter/screens/booking/component/price_common_widget.dart';
-import 'package:actcms_spa_flutter/services/razor_pay_services.dart';
-import 'package:actcms_spa_flutter/services/stripe_services.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/booking_detail_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/booking/component/price_common_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/wallet/user_wallet_balance_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/extensions/num_extenstions.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_mobx/flutter_mobx.dart';
-import 'package:flutterwave_standard/flutterwave.dart';
+import 'package:intl/intl.dart';
 import 'package:nb_utils/nb_utils.dart';
-import 'package:uuid/uuid.dart';
+
+import '../../component/app_common_dialog.dart';
+import '../../component/base_scaffold_widget.dart';
+import '../../component/empty_error_state_widget.dart';
+import '../../component/wallet_balance_component.dart';
+import '../../component/temporary_dialog.dart';
+import '../../model/payment_gateway_response.dart';
+import '../../network/rest_apis.dart';
+import '../../services/airtel_money/airtel_money_service.dart';
+import '../../services/cinet_pay_services_new.dart';
+import '../../services/flutter_wave_service_new.dart';
+import '../../services/midtrans_service.dart';
+import '../../services/paypal_service.dart';
+import '../../services/paystack_service.dart';
+import '../../services/phone_pe/phone_pe_service.dart';
+import '../../services/razorpay_service_new.dart';
+import '../../services/sadad_services_new.dart';
+import '../../services/stripe_service_new.dart';
+import '../../services/vnpay_service_new.dart';
+import '../../services/momo_service_new.dart';
+import '../../utils/configs.dart';
+import '../../utils/model_keys.dart';
+import '../dashboard/dashboard_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
   final BookingDetailResponse bookings;
+  final bool isForAdvancePayment;
 
-  PaymentScreen({required this.bookings});
+  PaymentScreen({required this.bookings, this.isForAdvancePayment = false});
 
   @override
   _PaymentScreenState createState() => _PaymentScreenState();
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  List<PaymentSetting> paymentList = [];
+  Future<List<PaymentSetting>>? future;
 
-  PaymentSetting? currentTimeValue;
+  PaymentSetting? currentPaymentMethod;
 
   num totalAmount = 0;
+  num? advancePaymentAmount;
+  String type = "";
 
   @override
   void initState() {
     super.initState();
     init();
+
+    if (widget.bookings.service!.isAdvancePayment && widget.bookings.service!.isFixedService && !widget.bookings.service!.isFreeService && widget.bookings.bookingDetail!.bookingPackage == null) {
+      if (widget.bookings.bookingDetail!.paidAmount.validate() == 0) {
+        advancePaymentAmount = widget.bookings.bookingDetail!.totalAmount.validate() * widget.bookings.service!.advancePaymentPercentage.validate() / 100;
+        totalAmount = widget.bookings.bookingDetail!.totalAmount.validate() * widget.bookings.service!.advancePaymentPercentage.validate() / 100;
+      } else {
+        totalAmount = widget.bookings.bookingDetail!.totalAmount.validate() - widget.bookings.bookingDetail!.paidAmount.validate();
+      }
+    } else {
+      totalAmount = widget.bookings.bookingDetail!.totalAmount.validate();
+    }
+
+    if(widget.bookings.service!.isAdvancePayment){
+      type = "advance_payment";
+    } else {
+      type = "full_payment";
+    }
+
   }
 
   void init() async {
-    paymentList = PaymentSetting.decode(getStringAsync(PAYMENT_LIST));
-
-    currentTimeValue = paymentList.first;
-
-    if (widget.bookings.bookingDetail!.isHourlyService.validate()) {
-      totalAmount = getHourlyPrice(
-        price: widget.bookings.bookingDetail!.totalAmount!.toInt(),
-        secTime: widget.bookings.bookingDetail!.durationDiff.toInt(),
-        date: widget.bookings.bookingDetail!.date.validate(),
-      );
-
-      log("Hourly Total Amount $totalAmount");
-    } else {
-      totalAmount = calculateTotalAmount(
-        serviceDiscountPercent: widget.bookings.service!.discount.validate(),
-        qty: widget.bookings.bookingDetail!.quantity!.toInt(),
-        detail: widget.bookings.service,
-        servicePrice: widget.bookings.bookingDetail!.amount.validate(),
-        taxes: widget.bookings.bookingDetail!.taxes.validate(),
-        couponData: widget.bookings.couponData,
-      );
-      log("Fixed Total Amount $totalAmount");
-    }
+    log("ISaDVANCE${widget.isForAdvancePayment}");
+    future = getPaymentGateways(requireCOD: !widget.isForAdvancePayment);
     setState(() {});
   }
 
@@ -70,159 +86,482 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (mounted) super.setState(fn);
   }
 
-  void _handleClick() async {
-    if (currentTimeValue!.type == PAYMENT_METHOD_COD) {
-      savePay(data: widget.bookings, paymentMethod: PAYMENT_METHOD_COD, totalAmount: totalAmount);
-    } else if (currentTimeValue!.type == PAYMENT_METHOD_STRIPE) {
-      if (currentTimeValue!.isTest == 1) {
-        await stripeServices.init(
-          stripePaymentPublishKey: currentTimeValue!.testValue!.stripePublickey.validate(),
-          data: widget.bookings,
-          totalAmount: totalAmount,
-          stripeURL: currentTimeValue!.testValue!.stripeUrl.validate(),
-          stripePaymentKey: currentTimeValue!.testValue!.stripeKey.validate(),
-          isTest: true,
-        );
-        await 1.seconds.delay;
-        stripeServices.stripePay();
-      } else {
-        await stripeServices.init(
-          stripePaymentPublishKey: currentTimeValue!.liveValue!.stripePublickey.validate(),
-          data: widget.bookings,
-          totalAmount: totalAmount,
-          stripeURL: currentTimeValue!.liveValue!.stripeUrl.validate(),
-          stripePaymentKey: currentTimeValue!.liveValue!.stripeKey.validate(),
-          isTest: false,
-        );
-        await 1.seconds.delay;
-        stripeServices.stripePay();
-      }
-    } else if (currentTimeValue!.type == PAYMENT_METHOD_RAZOR) {
-      if (currentTimeValue!.isTest == 1) {
-        appStore.setLoading(true);
-        RazorPayServices.init(razorKey: currentTimeValue!.testValue!.razorKey!, data: widget.bookings);
-        await 1.seconds.delay;
+  Future<void> _handleClick() async {
+    appStore.setLoading(true);
+    if (currentPaymentMethod!.type == PAYMENT_METHOD_COD) {
+      savePay(paymentMethod: PAYMENT_METHOD_COD, paymentStatus: SERVICE_PAYMENT_STATUS_PENDING);
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_STRIPE) {
+      StripeServiceNew stripeServiceNew = StripeServiceNew(
+        paymentSetting: currentPaymentMethod!,
+        totalAmount: totalAmount,
+        onComplete: (p0) {
+          savePay(
+            paymentMethod: PAYMENT_METHOD_STRIPE,
+            paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+            txnId: p0['transaction_id'],
+          );
+        },
+      );
+
+      stripeServiceNew.stripePay().catchError((e) {
         appStore.setLoading(false);
-        RazorPayServices.razorPayCheckout(totalAmount);
-      } else {
-        appStore.setLoading(true);
-        RazorPayServices.init(razorKey: currentTimeValue!.liveValue!.razorKey!, data: widget.bookings);
-        await 1.seconds.delay;
+        toast(e);
+      });
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_VNPAY) {
+    var discount = widget.bookings.service!.discount ?? 0;
+    num bookingId = widget.bookings.bookingDetail != null ? widget.bookings.bookingDetail!.id.validate() : 0;
+    VnpayServiceNew vnpayServiceNew = VnpayServiceNew(
+      paymentSetting: currentPaymentMethod!,
+      totalAmount: totalAmount.toDouble(),
+      type: type,
+      bookingId: bookingId,
+      discount: discount,
+      onComplete: (p0) {
+        String message;
+        String transactionStatus = p0['transaction_status']?.toString() ?? 'unknown'; 
+        print("mess: $transactionStatus");
+          switch (transactionStatus) {
+            case '00':
+              message = language.paymentSuccess;
+              savePay(
+                paymentMethod: PAYMENT_METHOD_VNPAY,
+                paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+                ortherDetail: message,
+                txnId: p0['transaction_id'],
+              );
+              break;
+            case '01':
+              message = language.transactionNotCompleted;
+              showTemporaryDialog(context, message);
+              break;
+            case '02':
+              message = language.paymentCancelled;
+              showTemporaryDialog(context, message);
+              break;
+            case '03':
+              message = 'Lỗi tạo link thanh toán';
+              showTemporaryDialog(context,message);
+              break;
+            default:
+              message = language.transactionStatusUnknown;
+              showTemporaryDialog(context, message);
+          }               
+        },
+      );
+      vnpayServiceNew.vnpayPay(context);
+
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_MOMO) {
+      var discount = widget.bookings.service!.discount ?? 0;
+      num bookingId = widget.bookings.bookingDetail != null ? widget.bookings.bookingDetail!.id.validate() : 0;
+      MomoServiceNew momoServiceNew = MomoServiceNew(
+        paymentSetting: currentPaymentMethod!,
+        totalAmount: totalAmount.toDouble(),
+        type: type,
+        bookingId: bookingId,
+        discount: discount,
+        onComplete: (p0) {
+          String message;
+          String transactionStatus = p0['transaction_status']?.toString() ?? 'unknown'; 
+           print("mess: $transactionStatus");
+                switch (transactionStatus) {
+                  case '0':
+                    message = language.paymentSuccess;
+                    savePay(
+                      paymentMethod: PAYMENT_METHOD_MOMO,
+                      paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+                      ortherDetail: message,
+                      txnId: p0['transaction_id'],
+                    );
+                    break;
+                  case '01':
+                    message = language.transactionNotCompleted;
+                    showTemporaryDialog(context, message);
+                    break;
+                  case '02':
+                    message = language.paymentCancelled;
+                    showTemporaryDialog(context, message);
+                    break;
+                  case '03':
+                    message = 'Lỗi tạo link thanh toán';
+                    showTemporaryDialog(context,message);
+                    break;
+                  default:
+                    message = language.transactionStatusUnknown;
+                    showTemporaryDialog(context, message);
+                     
+                }
+               
+        },
+      );
+      momoServiceNew.momoPay(context);
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_RAZOR) {
+      RazorPayServiceNew razorPayServiceNew = RazorPayServiceNew(
+        paymentSetting: currentPaymentMethod!,
+        totalAmount: totalAmount,
+        onComplete: (p0) {
+          savePay(
+            paymentMethod: PAYMENT_METHOD_RAZOR,
+            paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+            txnId: p0['paymentId'],
+          );
+        },
+      );
+      razorPayServiceNew.razorPayCheckout().catchError((e) {
         appStore.setLoading(false);
-        RazorPayServices.razorPayCheckout(totalAmount);
+        toast(e);
+      });
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_FLUTTER_WAVE) {
+      FlutterWaveServiceNew flutterWaveServiceNew = FlutterWaveServiceNew();
+
+      flutterWaveServiceNew.checkout(
+        paymentSetting: currentPaymentMethod!,
+        totalAmount: totalAmount,
+        onComplete: (p0) {
+          savePay(
+            paymentMethod: PAYMENT_METHOD_FLUTTER_WAVE,
+            paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+            txnId: p0['transaction_id'],
+          );
+        },
+      );
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_CINETPAY) {
+      List<String> supportedCurrencies = ["XOF", "XAF", "CDF", "GNF", "USD"];
+
+      if (!supportedCurrencies.contains(appConfigurationStore.currencyCode)) {
+        toast(language.cinetPayNotSupportedMessage);
+        return;
+      } else if (totalAmount < 100) {
+        return toast('${language.totalAmountShouldBeMoreThan} ${100.toPriceFormat()}');
+      } else if (totalAmount > 1500000) {
+        return toast('${language.totalAmountShouldBeLessThan} ${1500000.toPriceFormat()}');
       }
-    } else if (currentTimeValue!.type == PAYMENT_METHOD_FLUTTER_WAVE) {
-      if (currentTimeValue!.isTest == 1) {
-        appStore.setLoading(true);
-        _handlePaymentInitialization(flutterWavePublicKeys: currentTimeValue!.testValue!.flutterwavePublic.validate());
-      } else {
-        appStore.setLoading(true);
-        _handlePaymentInitialization(flutterWavePublicKeys: currentTimeValue!.liveValue!.flutterwavePublic.validate());
-      }
+
+      CinetPayServicesNew cinetPayServices = CinetPayServicesNew(
+        paymentSetting: currentPaymentMethod!,
+        totalAmount: totalAmount,
+        onComplete: (p0) {
+          savePay(
+            paymentMethod: PAYMENT_METHOD_CINETPAY,
+            paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+            txnId: p0['transaction_id'],
+          );
+        },
+      );
+
+      cinetPayServices.payWithCinetPay(context: context).catchError((e) {
+        appStore.setLoading(false);
+        toast(e);
+      });
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_SADAD_PAYMENT) {
+      SadadServicesNew sadadServices = SadadServicesNew(
+        paymentSetting: currentPaymentMethod!,
+        totalAmount: totalAmount,
+        remarks: language.topUpWallet,
+        onComplete: (p0) {
+          savePay(
+            paymentMethod: PAYMENT_METHOD_SADAD_PAYMENT,
+            paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+            txnId: p0['transaction_id'],
+          );
+        },
+      );
+
+      sadadServices.payWithSadad(context).catchError((e) {
+        appStore.setLoading(false);
+        toast(e);
+      });
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_PAYPAL) {
+      PayPalService.paypalCheckOut(
+        context: context,
+        paymentSetting: currentPaymentMethod!,
+        totalAmount: totalAmount,
+        onComplete: (p0) {
+          log('PayPalService onComplete: $p0');
+          savePay(
+            paymentMethod: PAYMENT_METHOD_PAYPAL,
+            paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+            txnId: p0['transaction_id'],
+          );
+        },
+      );
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_AIRTEL) {
+      showInDialog(
+        context,
+        contentPadding: EdgeInsets.zero,
+        barrierDismissible: false,
+        builder: (context) {
+          return AppCommonDialog(
+            title: language.airtelMoneyPayment,
+            child: AirtelMoneyDialog(
+              amount: totalAmount,
+              reference: APP_NAME,
+              paymentSetting: currentPaymentMethod!,
+              bookingId: widget.bookings.bookingDetail != null ? widget.bookings.bookingDetail!.id.validate() : 0,
+              onComplete: (res) {
+                log('RES: $res');
+                savePay(
+                  paymentMethod: PAYMENT_METHOD_AIRTEL,
+                  paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+                  txnId: res['transaction_id'],
+                );
+              },
+            ),
+          );
+        },
+      ).then((value) => appStore.setLoading(false));
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_PAYSTACK) {
+      PayStackService paystackServices = PayStackService();
+      appStore.setLoading(true);
+      await paystackServices.init(
+        context: context,
+        currentPaymentMethod: currentPaymentMethod!,
+        loderOnOFF: (p0) {
+          appStore.setLoading(p0);
+        },
+        totalAmount: totalAmount.toDouble(),
+        bookingId: widget.bookings.bookingDetail != null ? widget.bookings.bookingDetail!.id.validate() : 0,
+        onComplete: (res) {
+          savePay(
+            paymentMethod: PAYMENT_METHOD_PAYSTACK,
+            paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+            txnId: res["transaction_id"],
+          );
+        },
+      );
+      await Future.delayed(const Duration(seconds: 1));
+      appStore.setLoading(false);
+      paystackServices.checkout().catchError((e) {
+        appStore.setLoading(false);
+        toast(e);
+      });
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_MIDTRANS) {
+      MidtransService midtransService = MidtransService();
+      appStore.setLoading(true);
+      await midtransService.initialize(
+        currentPaymentMethod: currentPaymentMethod!,
+        totalAmount: totalAmount,
+        serviceId: widget.bookings.bookingDetail != null ? widget.bookings.bookingDetail!.serviceId.validate() : 0,
+        serviceName: widget.bookings.bookingDetail != null ? widget.bookings.bookingDetail!.serviceName.validate() : '',
+        servicePrice: widget.bookings.bookingDetail != null ? widget.bookings.bookingDetail!.amount.validate() : 0,
+        loaderOnOFF: (p0) {
+          appStore.setLoading(p0);
+        },
+        onComplete: (res) {
+          savePay(
+            paymentMethod: PAYMENT_METHOD_MIDTRANS,
+            paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+            txnId: res["transaction_id"],
+          );
+        },
+      );
+      await Future.delayed(const Duration(seconds: 1));
+      appStore.setLoading(false);
+      midtransService.midtransPaymentCheckout().catchError((e) {
+        appStore.setLoading(false);
+        toast(e);
+      });
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_PHONEPE) {
+      PhonePeServices peServices = PhonePeServices(
+        paymentSetting: currentPaymentMethod!,
+        totalAmount: totalAmount.toDouble(),
+        bookingId: widget.bookings.bookingDetail != null ? widget.bookings.bookingDetail!.id.validate() : 0,
+        onComplete: (res) {
+          log('RES: $res');
+          savePay(
+            paymentMethod: PAYMENT_METHOD_PHONEPE,
+            paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+            txnId: res["transaction_id"],
+          );
+        },
+      );
+
+      peServices.phonePeCheckout(context).catchError((e) {
+        appStore.setLoading(false);
+        toast(e);
+      });
+    } else if (currentPaymentMethod!.type == PAYMENT_METHOD_FROM_WALLET) {
+      savePay(
+        paymentMethod: PAYMENT_METHOD_FROM_WALLET,
+        paymentStatus: widget.isForAdvancePayment ? SERVICE_PAYMENT_STATUS_ADVANCE_PAID : SERVICE_PAYMENT_STATUS_PAID,
+        txnId: '',
+      );
     }
   }
+  
+  void savePay({String txnId = '', String paymentMethod = '', String paymentStatus = '', String ortherDetail = ''}) async {
+    Map request = {
+      CommonKeys.bookingId: widget.bookings.bookingDetail!.id.validate(),
+      CommonKeys.customerId: appStore.userId,
+      CouponKeys.discount: widget.bookings.service!.discount,
+      BookingServiceKeys.totalAmount: totalAmount,
+      CommonKeys.dateTime: DateFormat(BOOKING_SAVE_FORMAT).format(DateTime.now()),
+      CommonKeys.txnId: txnId != '' ? txnId : "#${widget.bookings.bookingDetail!.id.validate()}",
+      CommonKeys.paymentStatus: paymentStatus,
+      CommonKeys.paymentMethod: paymentMethod,
+      CommonKeys.ortherDetail: ortherDetail,
+    };
 
-  void _handlePaymentInitialization({required String flutterWavePublicKeys}) async {
-    final Customer customer = Customer(
-      name: widget.bookings.customer!.displayName.toString(),
-      phoneNumber: widget.bookings.customer!.contactNumber.toString(),
-      email: widget.bookings.customer!.email.toString(),
-    );
+    if (widget.bookings.service != null && widget.bookings.service!.isAdvancePayment && widget.bookings.service!.isFixedService && !widget.bookings.service!.isFreeService && widget.bookings.bookingDetail!.bookingPackage == null) {
+      request[AdvancePaymentKey.advancePaymentAmount] = advancePaymentAmount ?? widget.bookings.bookingDetail!.paidAmount;
 
-    Flutterwave flutterWave = Flutterwave(
-      context: context,
-      style: FlutterwaveStyle(
-        appBarText: "Pay By FlutterWave",
-        buttonColor: primaryColor,
-        appBarIcon: Icon(Icons.arrow_back_ios, color: Colors.white),
-        buttonTextStyle: boldTextStyle(color: Colors.white),
-        buttonText: "Continue to pay ${appStore.currencySymbol}$totalAmount",
-        appBarColor: primaryColor,
-        appBarTitleTextStyle: boldTextStyle(color: Colors.white, size: 18),
-        dialogCancelTextStyle: TextStyle(color: Colors.redAccent, fontSize: 18),
-        dialogContinueTextStyle: TextStyle(color: Colors.blue, fontSize: 18),
-      ),
-      publicKey: flutterWavePublicKeys,
-      currency: appStore.currencyCode,
-      redirectUrl: "https://google.com",
-      txRef: Uuid().v1(),
-      amount: totalAmount.toString(),
-      customer: customer,
-      paymentOptions: "card, payattitude, barter",
-      customization: Customization(title: "FlutterWave Payment"),
-      isTestMode: false,
-    );
-
-    await flutterWave.charge().then((value) {
-      if (value.success.validate()) {
-        savePay(paymentMethod: PAYMENT_METHOD_FLUTTER_WAVE, paymentStatus: SERVICE_PAYMENT_STATUS_PAID, data: widget.bookings, totalAmount: totalAmount, txnId: value.transactionId);
+      if ((widget.bookings.bookingDetail!.paymentStatus == null || widget.bookings.bookingDetail!.paymentStatus != SERVICE_PAYMENT_STATUS_ADVANCE_PAID || widget.bookings.bookingDetail!.paymentStatus != SERVICE_PAYMENT_STATUS_PAID) &&
+          (widget.bookings.bookingDetail!.paidAmount == null || widget.bookings.bookingDetail!.paidAmount.validate() <= 0)) {
+        request[CommonKeys.paymentStatus] = SERVICE_PAYMENT_STATUS_ADVANCE_PAID;
+      } else if (widget.bookings.bookingDetail!.paymentStatus == SERVICE_PAYMENT_STATUS_ADVANCE_PAID) {
+        request[CommonKeys.paymentStatus] = SERVICE_PAYMENT_STATUS_PAID;
       }
-    }).catchError((e) {
+    }
+
+    appStore.setLoading(true);
+    savePayment(request).then((value) {
       appStore.setLoading(false);
-      log(e.toString());
+      push(DashboardScreen(redirectToBooking: true), isNewTask: true, pageRouteAnimation: PageRouteAnimation.Fade);
+    }).catchError((e) {
+      toast(e.toString());
+      appStore.setLoading(false);
     });
+  }
+
+  Future<void> showTemporaryDialog(BuildContext context, String message) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false, 
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content:  Text(message, style: primaryTextStyle()),
+          actions: <Widget>[
+        TextButton(
+          child: Text('OK'),
+          onPressed: () {
+            Navigator.of(context).pop(); 
+          },
+        ),
+      ],
+        );
+      },
+    );
+
+    await Future.delayed(Duration(seconds: 1));
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: appBarWidget(language.payment, color: context.primaryColor, textColor: Colors.white, backWidget: BackWidget()),
-      body: Stack(
+    return AppScaffold(
+      appBarTitle: language.payment,
+      child: AnimatedScrollView(
+        listAnimationType: ListAnimationType.FadeIn,
+        fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
+        physics: AlwaysScrollableScrollPhysics(),
+        onSwipeRefresh: () async {
+          if (!appStore.isLoading) init();
+          return await 1.seconds.delay;
+        },
         children: [
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PriceCommonWidget(
-                      bookingDetail: widget.bookings.bookingDetail!,
-                      serviceDetail: widget.bookings.service!,
-                      taxes: widget.bookings.bookingDetail!.taxes.validate(),
-                      couponData: widget.bookings.couponData,
-                    ),
-                    32.height,
-                    Text(language.lblChoosePaymentMethod, style: boldTextStyle(size: LABEL_TEXT_SIZE)),
-                  ],
-                ).paddingAll(16),
-                if (paymentList.isNotEmpty)
-                  ListView.builder(
-                    itemCount: paymentList.length,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PriceCommonWidget(
+                    bookingDetail: widget.bookings.bookingDetail!,
+                    serviceDetail: widget.bookings.service!,
+                    taxes: widget.bookings.bookingDetail!.taxes.validate(),
+                    couponData: widget.bookings.couponData,
+                    bookingPackage: widget.bookings.bookingDetail!.bookingPackage != null ? widget.bookings.bookingDetail!.bookingPackage : null,
+                  ),
+                  32.height,
+                  Text(language.lblChoosePaymentMethod, style: boldTextStyle(size: LABEL_TEXT_SIZE)),
+                ],
+              ).paddingAll(16),
+              SnapHelperWidget<List<PaymentSetting>>(
+                future: future,
+                onSuccess: (list) {
+                  return AnimatedListView(
+                    itemCount: list.length,
                     shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    listAnimationType: ListAnimationType.FadeIn,
+                    fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
+                    emptyWidget: NoDataWidget(
+                      title: language.noPaymentMethodFound,
+                      imageWidget: EmptyStateWidget(),
+                    ),
                     itemBuilder: (context, index) {
-                      PaymentSetting value = paymentList[index];
+                      PaymentSetting value = list[index];
+
+                      if (value.status.validate() == 0) return Offstage();
+
                       return RadioListTile<PaymentSetting>(
                         dense: true,
                         activeColor: primaryColor,
                         value: value,
                         controlAffinity: ListTileControlAffinity.trailing,
-                        groupValue: currentTimeValue,
+                        groupValue: currentPaymentMethod,
                         onChanged: (PaymentSetting? ind) {
-                          currentTimeValue = ind;
+                          currentPaymentMethod = ind;
+
                           setState(() {});
                         },
                         title: Text(value.title.validate(), style: primaryTextStyle()),
                       );
                     },
-                  )
-                else
-                  Column(
-                    children: [
-                      24.height,
-                      Image.asset(notDataFoundImg, height: 150),
-                      16.height,
-                      Text(language.lblNoPayments, style: boldTextStyle()).center(),
-                    ],
-                  ),
-                if (paymentList.isNotEmpty)
-                  AppButton(
-                    onTap: () {
-                      if (currentTimeValue!.type == PAYMENT_METHOD_COD) {
+                  );
+                },
+              ),
+              if (appConfigurationStore.isEnableUserWallet) WalletBalanceComponent().paddingSymmetric(vertical: 8, horizontal: 16),
+              if (!appStore.isLoading)
+                AppButton(
+                  onTap: () async {
+                    if (currentPaymentMethod == null) {
+                      return toast(language.chooseAnyOnePayment);
+                    }
+
+                    if (currentPaymentMethod!.type == PAYMENT_METHOD_COD || currentPaymentMethod!.type == PAYMENT_METHOD_FROM_WALLET) {
+                      if (currentPaymentMethod!.type == PAYMENT_METHOD_FROM_WALLET) {
+                        appStore.setLoading(true);
+                        num walletBalance = await getUserWalletBalance();
+
+                        appStore.setLoading(false);
+                        if (walletBalance >= totalAmount) {
+                          showConfirmDialogCustom(
+                            context,
+                            dialogType: DialogType.CONFIRMATION,
+                            title: "${language.lblPayWith} ${currentPaymentMethod!.title.validate()}?",
+                            primaryColor: primaryColor,
+                            positiveText: language.lblYes,
+                            negativeText: language.lblCancel,
+                            onAccept: (p0) {
+                              _handleClick();
+                            },
+                          );
+                        } else {
+                          toast(language.insufficientBalanceMessage);
+
+                          if (appConfigurationStore.onlinePaymentStatus) {
+                            showConfirmDialogCustom(
+                              context,
+                              dialogType: DialogType.CONFIRMATION,
+                              title: language.doYouWantToTopUpYourWallet,
+                              positiveText: language.lblYes,
+                              negativeText: language.lblNo,
+                              cancelable: false,
+                              primaryColor: context.primaryColor,
+                              onAccept: (p0) {
+                                pop();
+                                push(UserWalletBalanceScreen());
+                              },
+                              onCancel: (p0) {
+                                pop();
+                              },
+                            );
+                          }
+                        }
+                      } else {
                         showConfirmDialogCustom(
                           context,
                           dialogType: DialogType.CONFIRMATION,
-                          title: "${language.lblPayWith} ${currentTimeValue!.title.validate()}",
+                          title: "${language.lblPayWith} ${currentPaymentMethod!.title.validate()}?",
                           primaryColor: primaryColor,
                           positiveText: language.lblYes,
                           negativeText: language.lblCancel,
@@ -230,18 +569,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             _handleClick();
                           },
                         );
-                      } else {
-                        _handleClick();
                       }
-                    },
-                    text: "${language.payWith} ${currentTimeValue!.title.validate()}",
-                    color: context.primaryColor,
-                    width: context.width(),
-                  ).paddingAll(16),
-              ],
-            ),
+                    } else {
+                      _handleClick().catchError((e) {
+                        appStore.setLoading(false);
+                        toast(e.toString());
+                      });
+                    }
+                  },
+                  text: "${language.lblPayNow} ${totalAmount.toPriceFormat()}",
+                  color: context.primaryColor,
+                  width: context.width(),
+                ).paddingAll(16),
+            ],
           ),
-          Observer(builder: (context) => LoaderWidget().visible(appStore.isLoading)).center()
         ],
       ),
     );

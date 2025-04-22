@@ -1,12 +1,15 @@
-import 'package:actcms_spa_flutter/component/background_component.dart';
-import 'package:actcms_spa_flutter/component/image_border_component.dart';
-import 'package:actcms_spa_flutter/component/selected_item_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/user_data_model.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/image_border_component.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/selected_item_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/user_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../../component/empty_error_state_widget.dart';
 
 class FilterProviderComponent extends StatefulWidget {
   final List<UserData> providerList;
@@ -20,11 +23,17 @@ class FilterProviderComponent extends StatefulWidget {
 class _FilterProviderComponentState extends State<FilterProviderComponent> {
   @override
   Widget build(BuildContext context) {
-    if (widget.providerList.isEmpty) return BackgroundComponent();
+    if (widget.providerList.isEmpty)
+      return NoDataWidget(
+        title: language.noProviderFound,
+        imageWidget: EmptyStateWidget(),
+      );
 
     return AnimatedListView(
       slideConfiguration: sliderConfigurationGlobal,
       itemCount: widget.providerList.length,
+      listAnimationType: ListAnimationType.FadeIn,
+      fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
       itemBuilder: (context, index) {
         UserData data = widget.providerList[index];
 
@@ -40,9 +49,15 @@ class _FilterProviderComponentState extends State<FilterProviderComponent> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(data.displayName.validate(), style: boldTextStyle()),
-                  4.height,
-                  Text('${language.lblMemberSince} ${DateFormat(YEAR).format(DateTime.parse(data.createdAt.validate()))}', style: secondaryTextStyle(size: 12)),
+                  Row(
+                    children: [
+                      Text(data.displayName.validate(), style: boldTextStyle()).flexible(),
+                      4.width,
+                      Image.asset(ic_star_fill, color: getRatingBarColor(data.providersServiceRating.validate().toInt(), showRedForZeroRating: true), height: 10),
+                    ],
+                  ),
+                  if (data.totalBooking.validate() != 0) Text("${language.basedOn} ${data.totalBooking} ${language.services}", style: secondaryTextStyle()),
+                  Text('${language.lblMemberSince} ${DateFormat(YEAR).format(DateTime.parse(data.createdAt.validate()))}', style: secondaryTextStyle()),
                 ],
               ).expand(),
               SelectedItemWidget(isSelected: data.isSelected),

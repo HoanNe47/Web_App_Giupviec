@@ -1,6 +1,8 @@
-import 'package:actcms_spa_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../../component/price_widget.dart';
 
 class FilterPriceComponent extends StatefulWidget {
   @override
@@ -32,7 +34,7 @@ class _FilterPriceComponentState extends State<FilterPriceComponent> {
           RangeSlider(
             min: 1,
             max: 5000,
-            divisions: (5000 ~/ 100).toInt(),
+            divisions: (5000 ~/ 10).toInt(),
             labels: RangeLabels(rangeValues.start.toInt().toString(), rangeValues.end.toInt().toString()),
             values: rangeValues,
             onChanged: (values) {
@@ -43,7 +45,17 @@ class _FilterPriceComponentState extends State<FilterPriceComponent> {
             },
           ),
           16.height,
-          Text("[ ${appStore.currencySymbol}${rangeValues.start.toInt()} - ${appStore.currencySymbol}${rangeValues.end.toInt()} ]", style: primaryTextStyle()).center(),
+          Marquee(
+            child: Row(
+              children: [
+                Text("[ ", style: primaryTextStyle()),
+                PriceWidget(price: rangeValues.start.toInt(), isBoldText: false, color: textPrimaryColorGlobal, decimalPoint: 0),
+                Text(" - ", style: primaryTextStyle()),
+                PriceWidget(price: rangeValues.end.toInt(), isBoldText: false, color: textPrimaryColorGlobal, decimalPoint: 0),
+                Text("]", style: primaryTextStyle()),
+              ],
+            ),
+          ).center(),
         ],
       ),
     );

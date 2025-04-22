@@ -1,16 +1,17 @@
-import 'package:actcms_spa_flutter/component/back_widget.dart';
-import 'package:actcms_spa_flutter/component/background_component.dart';
-import 'package:actcms_spa_flutter/component/loader_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/service_detail_response.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/screens/review/review_widget.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
-import 'package:actcms_spa_flutter/utils/model_keys.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_detail_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/review/components/review_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/review/shimmer/review_shimmer.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/model_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
-class RatingViewAllScreen extends StatelessWidget {
+import '../../component/base_scaffold_widget.dart';
+import '../../component/empty_error_state_widget.dart';
+
+class RatingViewAllScreen extends StatefulWidget {
   final List<RatingData>? ratingData;
   final int? serviceId;
   final int? handymanId;
@@ -18,24 +19,49 @@ class RatingViewAllScreen extends StatelessWidget {
   RatingViewAllScreen({this.ratingData, this.serviceId, this.handymanId});
 
   @override
+  State<RatingViewAllScreen> createState() => _RatingViewAllScreenState();
+}
+
+class _RatingViewAllScreenState extends State<RatingViewAllScreen> {
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: appBarWidget(language.review, color: context.primaryColor, textColor: Colors.white, backWidget: BackWidget()),
-      body: SnapHelperWidget<List<RatingData>>(
-        future: serviceId != null ? serviceReviews({CommonKeys.serviceId: serviceId}) : handymanReviews({CommonKeys.handymanId: handymanId}),
-        loadingWidget: LoaderWidget(),
+    return AppScaffold(
+      appBarTitle: language.review,
+      child: SnapHelperWidget<List<RatingData>>(
+        future: widget.serviceId != null ? serviceReviews({CommonKeys.serviceId: widget.serviceId}) : handymanReviews({CommonKeys.handymanId: widget.handymanId}),
+        loadingWidget: ReviewShimmer(),
         onSuccess: (data) {
-          if (data.isNotEmpty) {
-            return AnimatedListView(
-              slideConfiguration: sliderConfigurationGlobal,
-              shrinkWrap: true,
-              padding: EdgeInsets.all(16),
-              itemCount: data.length,
-              itemBuilder: (context, index) => ReviewWidget(data: data[index], isCustomer: serviceId == null),
-            );
-          } else {
-            return BackgroundComponent(text: language.lblNoServiceRatings);
-          }
+          return AnimatedListView(
+            slideConfiguration: sliderConfigurationGlobal,
+            shrinkWrap: true,
+            listAnimationType: ListAnimationType.FadeIn,
+            fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
+            padding: EdgeInsets.all(16),
+            itemCount: data.length,
+            physics: AlwaysScrollableScrollPhysics(),
+            itemBuilder: (context, index) => ReviewWidget(data: data[index], isCustomer: widget.serviceId == null),
+            emptyWidget: NoDataWidget(
+              title: language.lblNoServiceRatings,
+              imageWidget: EmptyStateWidget(),
+            ),
+            onSwipeRefresh: () async {
+              setState(() {});
+
+              return await 2.seconds.delay;
+            },
+          );
+        },
+        errorBuilder: (error) {
+          return NoDataWidget(
+            title: error,
+            imageWidget: ErrorStateWidget(),
+            retryText: language.reload,
+            onRetry: () {
+              appStore.setLoading(true);
+
+              setState(() {});
+            },
+          );
         },
       ),
     );

@@ -1,8 +1,7 @@
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
-import 'package:actcms_spa_flutter/utils/model_keys.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/model_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:nb_utils/nb_utils.dart';
@@ -68,7 +67,10 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             Container(
               padding: EdgeInsets.all(16),
               width: context.width(),
-              decoration: boxDecorationDefault(color: context.primaryColor, borderRadius: radiusOnly(topRight: defaultRadius, topLeft: defaultRadius)),
+              decoration: boxDecorationDefault(
+                color: context.primaryColor,
+                borderRadius: radiusOnly(topRight: defaultRadius, topLeft: defaultRadius),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -86,13 +88,13 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("${language.hintEmailAddressTxt}", style: boldTextStyle(size: 20)),
-                2.height,
+                Text("${language.hintEmailAddressTxt}", style: boldTextStyle()),
+                6.height,
                 Text(language.lblForgotPwdSubtitle, style: secondaryTextStyle()),
-                16.height,
+                24.height,
                 Observer(
                   builder: (_) => AppTextField(
-                    textFieldType: TextFieldType.EMAIL,
+                    textFieldType: TextFieldType.EMAIL_ENHANCED,
                     controller: emailCont,
                     autoFocus: true,
                     errorThisFieldRequired: language.requiredText,
@@ -102,17 +104,11 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 16.height,
                 AppButton(
                   text: language.resetPassword,
-                  height: 40,
                   color: primaryColor,
-                  textStyle: primaryTextStyle(color: white),
+                  textColor: Colors.white,
                   width: context.width() - context.navigationBarHeight,
                   onTap: () {
-                    if (getStringAsync(USER_EMAIL) != DEFAULT_EMAIL) {
-                      forgotPwd();
-                    } else {
-                      toast(language.lblUnAuthorized);
-                      finish(context);
-                    }
+                    forgotPwd();
                   },
                 ),
               ],

@@ -1,25 +1,29 @@
 import 'dart:async';
 
-import 'package:actcms_spa_flutter/component/cached_image_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/dashboard_model.dart';
-import 'package:actcms_spa_flutter/screens/notification/notification_screen.dart';
-import 'package:actcms_spa_flutter/screens/service/search_list_screen.dart';
-import 'package:actcms_spa_flutter/screens/service/service_detail_screen.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
-import 'package:actcms_spa_flutter/utils/string_extensions.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/cached_image_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/dashboard_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/notification/notification_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/service/service_detail_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/configs.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../../model/service_data_model.dart';
+import '../../../utils/common.dart';
+import '../../service/search_service_screen.dart';
 
 class SliderLocationComponent extends StatefulWidget {
   final List<SliderModel> sliderList;
-  final int? notificationReadCount;
+  final List<ServiceData>? featuredList;
   final VoidCallback? callback;
 
-  SliderLocationComponent({required this.sliderList, this.notificationReadCount, this.callback});
+  SliderLocationComponent({required this.sliderList, this.callback, this.featuredList});
 
   @override
   State<SliderLocationComponent> createState() => _SliderLocationComponentState();
@@ -34,7 +38,7 @@ class _SliderLocationComponentState extends State<SliderLocationComponent> {
   void initState() {
     super.initState();
     if (getBoolAsync(AUTO_SLIDER_STATUS, defaultValue: true) && widget.sliderList.length >= 2) {
-      _timer = Timer.periodic(Duration(seconds: 5), (Timer timer) {
+      _timer = Timer.periodic(Duration(seconds: DASHBOARD_AUTO_SLIDER_SECOND), (Timer timer) {
         if (_currentPage < widget.sliderList.length - 1) {
           _currentPage++;
         } else {
@@ -110,19 +114,21 @@ class _SliderLocationComponentState extends State<SliderLocationComponent> {
                   clipBehavior: Clip.none,
                   children: [
                     ic_notification.iconImage(size: 24, color: primaryColor).center(),
-                    Positioned(
-                      top: -20,
-                      right: -10,
-                      child: widget.notificationReadCount.validate() > 0
-                          ? Container(
-                              padding: EdgeInsets.all(4),
-                              child: FittedBox(
-                                child: Text(widget.notificationReadCount.toString(), style: primaryTextStyle(size: 12, color: Colors.white)),
-                              ),
-                              decoration: boxDecorationDefault(color: Colors.red, shape: BoxShape.circle),
-                            )
-                          : Offstage(),
-                    )
+                    Observer(builder: (context) {
+                      return Positioned(
+                        top: -20,
+                        right: -10,
+                        child: appStore.unreadCount.validate() > 0
+                            ? Container(
+                                padding: EdgeInsets.all(4),
+                                child: FittedBox(
+                                  child: Text(appStore.unreadCount.toString(), style: primaryTextStyle(size: 12, color: Colors.white)),
+                                ),
+                                decoration: boxDecorationDefault(color: Colors.red, shape: BoxShape.circle),
+                              )
+                            : Offstage(),
+                      );
+                    })
                   ],
                 ),
               ).onTap(() {
@@ -157,35 +163,42 @@ class _SliderLocationComponentState extends State<SliderLocationComponent> {
           left: 16,
           child: Row(
             children: [
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: commonDecoration,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    ic_location.iconImage(color: appStore.isDarkMode ? Colors.white : Colors.black),
-                    8.width,
-                    Text(
-                      appStore.isCurrentLocation ? getStringAsync(CURRENT_ADDRESS) : language.lblLocationOff,
-                      style: secondaryTextStyle(),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ).expand(),
-                    8.width,
-                    commonLocationWidget(
-                      context: context,
-                      color: appStore.isCurrentLocation ? primaryColor : grey,
-                      onTap: () {
+              Observer(
+                builder: (context) {
+                  return AppButton(
+                    padding: EdgeInsets.all(0),
+                    width: context.width(),
+                    child: Container(
+                      padding: EdgeInsets.all(16),
+                      decoration: commonDecoration,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          ic_location.iconImage(color: appStore.isDarkMode ? Colors.white : Colors.black),
+                          8.width,
+                          Text(
+                            appStore.isCurrentLocation ? getStringAsync(CURRENT_ADDRESS) : language.lblLocationOff,
+                            style: secondaryTextStyle(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ).expand(),
+                          8.width,
+                          ic_active_location.iconImage(size: 24, color: appStore.isCurrentLocation ? primaryColor : grey),
+                        ],
+                      ),
+                    ),
+                    onTap: () async {
+                      locationWiseService(context, () {
                         widget.callback?.call();
-                      },
-                    )
-                  ],
-                ),
+                      });
+                    },
+                  );
+                },
               ).expand(),
               16.width,
               GestureDetector(
                 onTap: () {
-                  SearchListScreen(isFromSearch: true).launch(context);
+                  SearchServiceScreen(featuredList: widget.featuredList).launch(context);
                 },
                 child: Container(
                   padding: EdgeInsets.all(16),

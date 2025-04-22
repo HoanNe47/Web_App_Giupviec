@@ -1,6 +1,6 @@
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
@@ -21,7 +21,7 @@ class ThemeSelectionDaiLogState extends State<ThemeSelectionDaiLog> {
   }
 
   Future<void> init() async {
-    currentIndex = getIntAsync(THEME_MODE_INDEX);
+    currentIndex = getIntAsync(THEME_MODE_INDEX, defaultValue: THEME_MODE_SYSTEM);
   }
 
   @override
@@ -74,8 +74,12 @@ class ThemeSelectionDaiLogState extends State<ThemeSelectionDaiLog> {
                       appStore.setDarkMode(context.platformBrightness() == Brightness.dark);
                     } else if (val == THEME_MODE_LIGHT) {
                       appStore.setDarkMode(false);
+                      defaultToastBackgroundColor = Colors.black;
+                      defaultToastTextColor = Colors.white;
                     } else if (val == THEME_MODE_DARK) {
                       appStore.setDarkMode(true);
+                      defaultToastBackgroundColor = Colors.white;
+                      defaultToastTextColor = Colors.black;
                     }
                     await setValue(THEME_MODE_INDEX, val);
                     setState(() {});

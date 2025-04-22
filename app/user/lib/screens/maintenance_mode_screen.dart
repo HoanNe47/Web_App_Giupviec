@@ -1,8 +1,10 @@
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../network/rest_apis.dart';
+import '../utils/constant.dart';
 
 class MaintenanceModeScreen extends StatelessWidget {
   @override
@@ -21,7 +23,8 @@ class MaintenanceModeScreen extends StatelessWidget {
           16.height,
           TextButton(
             onPressed: () async {
-              await setupFirebaseRemoteConfig();
+              await setValue(LAST_APP_CONFIGURATION_SYNCED_TIME, 0);
+              await getAppConfigurations();
               RestartAppWidget.init(context);
             },
             child: Text(language.lblRecheck),

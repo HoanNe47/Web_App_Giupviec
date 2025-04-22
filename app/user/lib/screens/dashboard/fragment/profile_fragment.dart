@@ -1,24 +1,34 @@
-import 'package:actcms_spa_flutter/component/cached_image_widget.dart';
-import 'package:actcms_spa_flutter/component/loader_widget.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/screens/auth/change_password_screen.dart';
-import 'package:actcms_spa_flutter/screens/auth/edit_profile_screen.dart';
-import 'package:actcms_spa_flutter/screens/auth/sign_in_screen.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/dashboard_screen.dart';
-import 'package:actcms_spa_flutter/screens/service/favourite_service_screen.dart';
-import 'package:actcms_spa_flutter/screens/setting_screen.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/configs.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
-import 'package:actcms_spa_flutter/utils/string_extensions.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/cached_image_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/loader_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/network/rest_apis.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/about_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/auth/edit_profile_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/auth/sign_in_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/blog/view/blog_list_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/customer_rating_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/dashboard_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/service/favourite_service_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/setting_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/wallet/user_wallet_balance_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/configs.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/constant.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/extensions/num_extenstions.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:nb_utils/nb_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../../utils/app_configuration.dart';
+import '../../bankDetails/view/bank_details.dart';
+import '../../favourite_provider_screen.dart';
+import '../../helpDesk/help_desk_list_screen.dart';
+import '../component/wallet_history.dart';
 
 class ProfileFragment extends StatefulWidget {
   @override
@@ -28,16 +38,32 @@ class ProfileFragment extends StatefulWidget {
 class ProfileFragmentState extends State<ProfileFragment> {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
+  Future<num>? futureWalletBalance;
+
   @override
   void initState() {
     super.initState();
     init();
-  }
-
-  Future<void> init() async {
     afterBuildCreated(() {
       appStore.setLoading(false);
       setStatusBarColor(context.primaryColor);
+    });
+  }
+
+  Future<void> init() async {
+    if (appStore.isLoggedIn) {
+      appStore.setUserWalletAmount();
+      userDetailAPI();
+    }
+  }
+
+  Future<void> userDetailAPI() async {
+    await getUserDetail(appStore.userId, forceUpdate: false).then((value) async {
+      await saveUserData(value, forceSyncAppConfigurations: false);
+      setState(() {});
+    }).catchError((e) {
+      appStore.setLoading(false);
+      toast(e.toString());
     });
   }
 
@@ -47,16 +73,12 @@ class ProfileFragmentState extends State<ProfileFragment> {
   }
 
   @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: appBarWidget(
         language.profile,
         textColor: white,
+        textSize: APP_BAR_TEXT_SIZE,
         elevation: 0.0,
         color: context.primaryColor,
         showBack: false,
@@ -73,228 +95,383 @@ class ProfileFragmentState extends State<ProfileFragment> {
         builder: (BuildContext context) {
           return Stack(
             children: [
-              SingleChildScrollView(
+              AnimatedScrollView(
+                listAnimationType: ListAnimationType.FadeIn,
+                fadeInConfiguration: FadeInConfiguration(duration: 2.seconds),
                 padding: EdgeInsets.only(bottom: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (appStore.isLoggedIn)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                onSwipeRefresh: () async {
+                  await removeKey(LAST_USER_DETAILS_SYNCED_TIME);
+                  init();
+                  setState(() {});
+                  return 1.seconds.delay;
+                },
+                children: [
+                  if (appStore.isLoggedIn)
+                    Container(
+                      decoration: boxDecorationWithRoundedCorners(
+                        borderRadius: radius(),
+                        backgroundColor: appStore.isDarkMode ? context.cardColor : lightPrimaryColor,
+                        border: Border.all(color: primaryColor),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          24.height,
-                          Stack(
-                            alignment: Alignment.bottomRight,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              Container(
-                                decoration: boxDecorationDefault(
-                                  border: Border.all(color: primaryColor, width: 3),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Container(
-                                  decoration: boxDecorationDefault(
-                                    border: Border.all(color: context.scaffoldBackgroundColor, width: 4),
-                                    shape: BoxShape.circle,
+                              Stack(
+                                alignment: Alignment.bottomCenter,
+                                clipBehavior: Clip.none,
+                                children: [
+                                  CachedImageWidget(url: appStore.userProfileImage, height: 70, width: 70, circle: true, fit: BoxFit.cover).paddingBottom(6),
+                                  Positioned(
+                                    child: Container(
+                                      alignment: Alignment.center,
+                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                                      decoration: boxDecorationDefault(
+                                        color: primaryColor,
+                                        border: Border.all(color: primaryLightColor, width: 2),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Text(language.lblEdit, style: secondaryTextStyle(color: whiteColor, size: 12)),
+                                    ).onTap(() {
+                                      EditProfileScreen().launch(context);
+                                    }),
                                   ),
-                                  child: CachedImageWidget(
-                                    url: appStore.userProfileImage,
-                                    height: 90,
-                                    width: 90,
-                                    fit: BoxFit.cover,
-                                    radius: 60,
-                                  ),
-                                ),
+                                ],
                               ),
-                              Positioned(
-                                bottom: 0,
-                                right: 8,
-                                child: Container(
-                                  alignment: Alignment.center,
-                                  padding: EdgeInsets.all(6),
-                                  decoration: boxDecorationDefault(
-                                    shape: BoxShape.circle,
-                                    color: primaryColor,
-                                    border: Border.all(color: context.cardColor, width: 2),
-                                  ),
-                                  child: Icon(AntDesign.edit, color: white, size: 18),
-                                ).onTap(() {
-                                  EditProfileScreen().launch(context);
+                              24.width,
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Marquee(child: Text(appStore.userFullName, style: boldTextStyle(color: primaryColor, size: 16))),
+                                  Marquee(child: Text(appStore.userEmail, style: secondaryTextStyle())),
+                                ],
+                              ).expand(),
+                            ],
+                          ).paddingOnly(left: 16, top: 16, bottom: 16),
+                          Container(
+                            decoration: BoxDecoration(borderRadius: BorderRadius.vertical(bottom: Radius.circular(8)), color: primaryColor),
+                            child: Row(
+                              children: [
+                                Image.asset(ic_wallet_cartoon, height: 20),
+                                8.width,
+                                Text(language.walletBalance, style: boldTextStyle(color: whiteColor)).onTap(() {
+                                  if (appConfigurationStore.onlinePaymentStatus) {
+                                    UserWalletBalanceScreen().launch(context);
+                                  }
                                 }),
-                              ),
-                            ],
-                          ),
-                          16.height,
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(appStore.userFullName, style: boldTextStyle(color: primaryColor, size: 18)),
-                              Text(appStore.userEmail, style: secondaryTextStyle()),
-                            ],
-                          ),
-                          24.height,
+                                Spacer(),
+                                Text(appStore.userWalletAmount.toPriceFormat(), style: boldTextStyle(color: whiteColor)),
+                              ],
+                            ).paddingAll(16),
+                          ).visible(appConfigurationStore.isEnableUserWallet),
                         ],
-                      ).center(),
-                    SettingSection(
+                      ),
+                    ).paddingOnly(left: 16, right: 16, top: 24),
+                  Observer(builder: (context) {
+                    return SettingSection(
                       title: Text(language.lblGENERAL, style: boldTextStyle(color: primaryColor)),
-                      headingDecoration: BoxDecoration(color: context.primaryColor.withOpacity(0.1)),
+                      headingDecoration: BoxDecoration(color: context.primaryColor.withValues(alpha:0.1), borderRadius: BorderRadiusDirectional.vertical(top: Radius.circular(16))),
                       divider: Offstage(),
+                      headerPadding: EdgeInsets.only(bottom: 14, right: 14, left: 16, top: 14),
                       items: [
+                        if (appStore.isLoggedIn && appConfigurationStore.isEnableUserWallet)
+                          SettingItemWidget(
+                            decoration: BoxDecoration(color: context.cardColor),
+                            leading: ic_wallet_history.iconImage(size: SETTING_ICON_SIZE),
+                            title: language.walletHistory,
+                            titleTextStyle: boldTextStyle(size: 12),
+                            padding: EdgeInsets.only(top: 20, left: 16, right: 16),
+                            trailing: trailing,
+                            onTap: () {
+                              UserWalletHistoryScreen().launch(context);
+                            },
+                          ),
+                        if (appStore.isLoggedIn && rolesAndPermissionStore.bankList)
+                          SettingItemWidget(
+                            decoration: BoxDecoration(color: context.cardColor),
+                            leading: ic_card.iconImage(size: SETTING_ICON_SIZE),
+                            title: language.lblBankDetails,
+                            titleTextStyle: boldTextStyle(size: 12),
+                            trailing: trailing,
+                            padding: EdgeInsets.only(top: 20, left: 16, right: 16),
+                            onTap: () {
+                              BankDetails().launch(context);
+                            },
+                          ),
                         SettingItemWidget(
+                          decoration: BoxDecoration(color: context.cardColor),
                           leading: ic_heart.iconImage(size: SETTING_ICON_SIZE),
                           title: language.lblFavorite,
+                          titleTextStyle: boldTextStyle(size: 12),
                           trailing: trailing,
+                          padding: EdgeInsets.only(top: 20, left: 16, right: 16),
                           onTap: () {
                             doIfLoggedIn(context, () {
                               FavouriteServiceScreen().launch(context);
                             });
                           },
                         ),
-                        if (isLoginTypeUser)
-                          SettingItemWidget(
-                            leading: ic_lock.iconImage(size: SETTING_ICON_SIZE),
-                            title: language.changePassword,
-                            trailing: trailing,
-                            onTap: () {
-                              doIfLoggedIn(context, () {
-                                ChangePasswordScreen().launch(context);
-                              });
-                            },
-                          ),
                         SettingItemWidget(
-                          leading: ic_star.iconImage(size: SETTING_ICON_SIZE),
-                          title: language.rateUs,
+                          decoration: BoxDecoration(color: context.cardColor),
+                          leading: ic_profile2.iconImage(size: SETTING_ICON_SIZE),
+                          title: language.favouriteProvider,
+                          titleTextStyle: boldTextStyle(size: 12),
                           trailing: trailing,
-                          onTap: () async {
-                            getPackageName().then((value) {
-                              String package = '';
-                              if (isAndroid) package = value;
-
-                              commonLaunchUrl(
-                                '${isAndroid ? getSocialMediaLink(LinkProvider.PLAY_STORE) : getSocialMediaLink(LinkProvider.APPSTORE)}$package',
-                                launchMode: LaunchMode.externalApplication,
-                              );
+                          padding: EdgeInsets.only(top: 20, left: 16, right: 16),
+                          onTap: () {
+                            doIfLoggedIn(context, () {
+                              FavouriteProviderScreen().launch(context);
                             });
                           },
                         ),
+                        if (appConfigurationStore.blogStatus && rolesAndPermissionStore.blogList)
+                          SettingItemWidget(
+                            decoration: BoxDecoration(color: context.cardColor),
+                            leading: ic_document.iconImage(size: SETTING_ICON_SIZE),
+                            title: language.blogs,
+                            titleTextStyle: boldTextStyle(size: 12),
+                            trailing: trailing,
+                            padding: EdgeInsets.only(top: 20, left: 16, right: 16),
+                            onTap: () {
+                              BlogListScreen().launch(context);
+                            },
+                          ),
+                              // .visible(rolesAndPermissionStore.blogList),
+                        SettingItemWidget(
+                          decoration: BoxDecoration(color: context.cardColor),
+                          leading: ic_star.iconImage(size: SETTING_ICON_SIZE),
+                          title: language.rateUs,
+                          titleTextStyle: boldTextStyle(size: 12),
+                          trailing: trailing,
+                          padding: EdgeInsets.only(top: 20, left: 16, right: 16),
+                          onTap: () async {
+                            if (isAndroid) {
+                              if (getStringAsync(CUSTOMER_PLAY_STORE_URL).isNotEmpty) {
+                                commonLaunchUrl(getStringAsync(CUSTOMER_PLAY_STORE_URL), launchMode: LaunchMode.externalApplication);
+                              } else {
+                                commonLaunchUrl('${getSocialMediaLink(LinkProvider.PLAY_STORE)}${await getPackageName()}', launchMode: LaunchMode.externalApplication);
+                              }
+                            } else if (isIOS) {
+                              if (getStringAsync(CUSTOMER_APP_STORE_URL).isNotEmpty) {
+                                commonLaunchUrl(getStringAsync(CUSTOMER_APP_STORE_URL), launchMode: LaunchMode.externalApplication);
+                              } else {
+                                commonLaunchUrl(IOS_LINK_FOR_USER, launchMode: LaunchMode.externalApplication);
+                              }
+                            }
+                          },
+                        ),
+                        SettingItemWidget(
+                          decoration: BoxDecoration(color: context.cardColor),
+                          leading: ic_my_review.iconImage(size: SETTING_ICON_SIZE),
+                          title: language.myReviews,
+                          titleTextStyle: boldTextStyle(size: 12),
+                          trailing: trailing,
+                          padding: appStore.isLoggedIn ? EdgeInsets.only(bottom: appStore.isLoggedIn ? 0 : 16, top: 20, left: 16, right: 16)  : EdgeInsets.only(bottom: 16, right: 16, left: 16, top: 20),
+                          onTap: () async {
+                            doIfLoggedIn(context, () {
+                              CustomerRatingScreen().launch(context);
+                            });
+                          },
+                        ),
+                        if (appStore.isLoggedIn && rolesAndPermissionStore.helpDeskList)
+                          SettingItemWidget(
+                            decoration: BoxDecoration(color: context.cardColor),
+                            leading: ic_help_desk.iconImage(size: SETTING_ICON_SIZE),
+                            title: language.helpDesk,
+                            titleTextStyle: boldTextStyle(size: 12),
+                            trailing: trailing,
+                            highlightColor: Colors.transparent,
+                            splashColor: Colors.transparent,
+                            padding: EdgeInsets.only(bottom: 16, right: 16, left: 16, top: 20),
+                            onTap: () {
+                              HelpDeskListScreen().launch(context);
+                            },
+                          ),
+                          SettingItemWidget(
+                            decoration: BoxDecoration(color: context.cardColor, borderRadius: BorderRadiusDirectional.vertical(bottom: Radius.circular(16))),
+                            title: '',
+                            titleTextStyle: boldTextStyle(size: 0),
+                            highlightColor: Colors.transparent,
+                            splashColor: Colors.transparent,
+                            padding: EdgeInsets.only(bottom: 6, right: 16, left: 16, top: 6),
+                            onTap: () {
+                            },
+                          ),
                       ],
-                    ),
-                    SettingSection(
-                      title: Text(language.lblAboutApp.toUpperCase(), style: boldTextStyle(color: primaryColor)),
-                      headingDecoration: BoxDecoration(color: context.primaryColor.withOpacity(0.1)),
-                      divider: Offstage(),
-                      items: [
-                        8.height,
+                    ).paddingAll(16);
+                  }),
+                  SettingSection(
+                    title: Text(language.lblAboutApp.toUpperCase(), style: boldTextStyle(color: primaryColor)),
+                    headingDecoration: BoxDecoration(color: context.primaryColor.withValues(alpha:0.1), borderRadius: BorderRadiusDirectional.vertical(top: Radius.circular(16))),
+                    divider: Offstage(),
+                    headerPadding: EdgeInsets.only(bottom: 14, right: 14, left: 16, top: 14),
+                    items: [
+                      8.height,
+                      SettingItemWidget(
+                        decoration: BoxDecoration(color: context.cardColor),
+                        leading: ic_about_us.iconImage(size: SETTING_ICON_SIZE),
+                        title: language.lblAboutApp,
+                        titleTextStyle: boldTextStyle(size: 12),
+                        padding: EdgeInsets.only(top: 20, left: 16, right: 16),
+                        onTap: () {
+                          AboutScreen().launch(context);
+                        },
+                      ).visible(rolesAndPermissionStore.aboutUs),
+                      SettingItemWidget(
+                        decoration: BoxDecoration(color: context.cardColor),
+                        leading: ic_shield_done.iconImage(size: SETTING_ICON_SIZE),
+                        title: language.privacyPolicy,
+                        titleTextStyle: boldTextStyle(size: 12),
+                        padding: EdgeInsets.only(top: 20, left: 16, right: 16),
+                        onTap: () {
+                          checkIfLink(context, appConfigurationStore.privacyPolicy, title: language.privacyPolicy);
+                        },
+                      ).visible(rolesAndPermissionStore.privacyPolicy),
+                      SettingItemWidget(
+                        decoration: BoxDecoration(color: context.cardColor),
+                        leading: ic_document.iconImage(size: SETTING_ICON_SIZE),
+                        title: language.termsCondition,
+                        titleTextStyle: boldTextStyle(size: 12),
+                        padding: EdgeInsets.only(top: 20, left: 16, right: 16),
+                        onTap: () {
+                          checkIfLink(context, appConfigurationStore.termConditions, title: language.termsCondition);
+                        },
+                      ).visible(rolesAndPermissionStore.termCondition),
+                      SettingItemWidget(
+                        decoration: BoxDecoration(color: context.cardColor),
+                        leading: ic_refund.iconImage(size: SETTING_ICON_SIZE),
+                        title: language.refundPolicy,
+                        titleTextStyle: boldTextStyle(size: 12),
+                        padding: EdgeInsets.only(top: 20, left: 16, right: 16),
+                        onTap: () {
+                          checkIfLink(context, appConfigurationStore.refundPolicy, title: language.refundPolicy);
+                        },
+                      ).visible(rolesAndPermissionStore.refundAndCancellationPolicy),
+                      if (appConfigurationStore.helpAndSupport.isNotEmpty && rolesAndPermissionStore.helpAndSupport)
                         SettingItemWidget(
-                          leading: ic_shield_done.iconImage(size: SETTING_ICON_SIZE),
-                          title: language.privacyPolicy,
-                          onTap: () {
-                            checkIfLink(context, appStore.privacyPolicy.validate(), title: language.privacyPolicy);
-                          },
-                        ),
-                        SettingItemWidget(
-                          leading: ic_document.iconImage(size: SETTING_ICON_SIZE),
-                          title: language.termsCondition,
-                          onTap: () {
-                            checkIfLink(context, appStore.termConditions.validate(), title: language.termsCondition);
-                          },
-                        ),
-                        SettingItemWidget(
+                          decoration: BoxDecoration(color: context.cardColor),
                           leading: ic_helpAndSupport.iconImage(size: SETTING_ICON_SIZE),
                           title: language.helpSupport,
+                          titleTextStyle: boldTextStyle(size: 12),
+                          padding: EdgeInsets.only(top: 20, left: 16, right: 16),
                           onTap: () {
-                            checkIfLink(context, appStore.inquiryEmail.validate(), title: language.helpSupport);
+                            if (appConfigurationStore.helpAndSupport.isNotEmpty) {
+                              checkIfLink(context, appConfigurationStore.helpAndSupport, title: language.helpSupport);
+                            } else {
+                              checkIfLink(context, appConfigurationStore.inquiryEmail.validate(), title: language.helpSupport);
+                            }
                           },
                         ),
+                      if (appConfigurationStore.helplineNumber.isNotEmpty)
                         SettingItemWidget(
+                          decoration: !appStore.isLoggedIn
+                              ? BoxDecoration(color: context.cardColor)
+                              : BoxDecoration(color: context.cardColor, borderRadius: BorderRadiusDirectional.vertical(bottom: Radius.circular(16))),
                           leading: ic_calling.iconImage(size: SETTING_ICON_SIZE),
                           title: language.lblHelplineNumber,
+                          titleTextStyle: boldTextStyle(size: 12),
+                          padding: EdgeInsets.only(bottom: appStore.isLoggedIn ? 16 : 0, right: 16, left: 16, top: 20),
+                          highlightColor: Colors.transparent,
+                          splashColor: Colors.transparent,
                           onTap: () {
-                            launchCall(appStore.helplineNumber.validate());
+                            launchCall(appConfigurationStore.helplineNumber.validate());
                           },
                         ),
-                        SettingItemWidget(
-                          leading: ic_buy.iconImage(size: SETTING_ICON_SIZE),
-                          title: language.lblPurchaseCode,
-                          onTap: () {
-                            launchUrlCustomTab(PURCHASE_URL);
-                          },
-                        ).visible(isIqonicProduct),
-                        SettingItemWidget(
-                          leading: Icon(MaterialCommunityIcons.logout, color: context.iconColor),
-                          title: language.signIn,
-                          onTap: () {
-                            SignInScreen().launch(context);
-                          },
-                        ).visible(!appStore.isLoggedIn),
-                      ],
-                    ),
-                    SettingSection(
-                      title: Text(language.lblDangerZone.toUpperCase(), style: boldTextStyle(color: redColor)),
-                      headingDecoration: BoxDecoration(color: redColor.withOpacity(0.08)),
-                      divider: Offstage(),
-                      items: [
-                        8.height,
-                        SettingItemWidget(
-                          leading: ic_delete_account.iconImage(size: SETTING_ICON_SIZE),
-                          paddingBeforeTrailing: 4,
-                          title: language.lblDeleteAccount,
-                          onTap: () {
-                            showConfirmDialogCustom(
-                              context,
-                              negativeText: language.lblCancel,
-                              positiveText: language.lblDelete,
-                              onAccept: (_) {
-                                ifNotTester(() {
-                                  appStore.setLoading(true);
+                      SettingItemWidget(
+                        decoration: !appStore.isLoggedIn
+                            ? BoxDecoration(color: context.cardColor, borderRadius: BorderRadiusDirectional.vertical(bottom: Radius.circular(16)))
+                            : BoxDecoration(color: context.cardColor),
+                        leading: Icon(MaterialCommunityIcons.logout, color: context.iconColor, size: SETTING_ICON_SIZE),
+                        title: language.signIn,
+                        titleTextStyle: boldTextStyle(size: 12),
+                        onTap: () {
+                          SignInScreen().launch(context);
+                        },
+                      ).visible(!appStore.isLoggedIn),
+                    ],
+                  ).paddingSymmetric(horizontal: 16),
+                  SettingSection(
+                    title: Text(language.lblDangerZone.toUpperCase(), style: boldTextStyle(color: redColor, size: 14)),
+                    headingDecoration: BoxDecoration(color: redColor.withValues(alpha:0.08), borderRadius: BorderRadiusDirectional.vertical(top: Radius.circular(16))),
+                    divider: Offstage(),
+                    headerPadding: EdgeInsets.only(bottom: 14, right: 14, left: 16, top: 14),
+                    items: [
+                      8.height,
+                      SettingItemWidget(
+                        decoration: BoxDecoration(color: context.cardColor, borderRadius: BorderRadiusDirectional.vertical(bottom: Radius.circular(16))),
+                        leading: ic_delete_account.iconImage(size: SETTING_ICON_SIZE),
+                        paddingBeforeTrailing: 4,
+                        title: language.lblDeleteAccount,
+                        titleTextStyle: boldTextStyle(size: 12),
+                        highlightColor: Colors.transparent,
+                        splashColor: Colors.transparent,
+                        onTap: () {
+                          showConfirmDialogCustom(
+                            context,
+                            negativeText: language.lblCancel,
+                            positiveText: language.lblDelete,
+                            onAccept: (_) {
+                              ifNotTester(() {
+                                appStore.setLoading(true);
 
-                                  deleteAccountCompletely().then((value) async {
-                                    appStore.setLoading(false);
+                                deleteAccountCompletely().then((value) async {
+                                  try {
+                                    await userService.removeDocument(appStore.uid);
+                                    await userService.deleteUser();
+                                  } catch (e) {
+                                    print(e);
+                                  }
 
-                                    toast(value.message);
-                                    await clearPreferences();
+                                  appStore.setLoading(false);
 
-                                    push(DashboardScreen(), isNewTask: true, pageRouteAnimation: PageRouteAnimation.Fade);
-                                  }).catchError((e) {
-                                    appStore.setLoading(false);
-                                    toast(e.toString());
-                                  });
+                                  await clearPreferences();
+                                  toast(value.message);
+
+                                  push(DashboardScreen(), isNewTask: true, pageRouteAnimation: PageRouteAnimation.Fade);
+                                }).catchError((e) {
+                                  appStore.setLoading(false);
+                                  toast(e.toString());
                                 });
-                              },
-                              dialogType: DialogType.DELETE,
-                              title: language.lblDeleteAccountConformation,
-                            );
-                          },
-                        ).paddingOnly(left: 4),
-                        64.height,
-                        TextButton(
-                          child: Text(language.logout, style: boldTextStyle(color: primaryColor, size: 18)),
-                          onPressed: () {
-                            logout(context);
-                          },
-                        ).center(),
-                      ],
-                    ).visible(appStore.isLoggedIn),
-                    30.height.visible(!appStore.isLoggedIn),
-                    SnapHelperWidget<PackageInfoData>(
-                      future: getPackageInfo(),
-                      onSuccess: (data) {
-                        return TextButton(
-                          child: VersionInfoWidget(prefixText: 'v', textStyle: secondaryTextStyle(size: 14)),
-                          onPressed: () {
-                            showAboutDialog(
-                              context: context,
-                              applicationName: APP_NAME,
-                              applicationVersion: data.versionName,
-                              applicationIcon: Image.asset(appLogo, height: 50),
-                            );
-                          },
-                        ).center();
-                      },
-                    ),
-                  ],
-                ),
+                              });
+                            },
+                            dialogType: DialogType.DELETE,
+                            title: language.lblDeleteAccountConformation,
+                          );
+                        },
+                      ),
+                      64.height,
+                      TextButton(
+                        child: Text(language.logout, style: boldTextStyle(color: primaryColor, size: 16)),
+                        onPressed: () {
+                          logout(context);
+                        },
+                      ).center(),
+                    ],
+                  ).visible(appStore.isLoggedIn).paddingOnly(left: 16, right: 16, top: 16),
+                  30.height.visible(!appStore.isLoggedIn),
+                  SnapHelperWidget<PackageInfoData>(
+                    future: getPackageInfo(),
+                    onSuccess: (data) {
+                      return TextButton(
+                        child: VersionInfoWidget(prefixText: 'v', textStyle: secondaryTextStyle()),
+                        onPressed: () {
+                          showAboutDialog(
+                            context: context,
+                            applicationName: APP_NAME,
+                            applicationVersion: data.versionName,
+                            applicationIcon: Image.asset(appLogo, height: 50),
+                          );
+                        },
+                      ).center();
+                    },
+                  ),
+                ],
               ),
-              Observer(builder: (context) => LoaderWidget().visible(appStore.isLoading))
+              Observer(builder: (context) => LoaderWidget().visible(appStore.isLoading)),
             ],
           );
         },

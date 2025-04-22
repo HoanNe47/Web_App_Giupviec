@@ -1,6 +1,8 @@
-import 'package:actcms_spa_flutter/model/service_detail_response.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_detail_response.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../../main.dart';
 
 class ServiceFaqWidget extends StatelessWidget {
   const ServiceFaqWidget({Key? key, required this.serviceFaq}) : super(key: key);
@@ -9,15 +11,22 @@ class ServiceFaqWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ExpansionTile(
-      title: Text(serviceFaq.title.validate(), style: boldTextStyle()),
-      tilePadding: EdgeInsets.symmetric(horizontal: 0),
-      children: [
-        ListTile(
-          title: Text(serviceFaq.description.validate(), style: secondaryTextStyle()),
-          contentPadding: EdgeInsets.only(bottom: 16),
-        ),
-      ],
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(color: context.cardColor,
+        borderRadius: radius(),
+        border: appStore.isDarkMode ? Border.all(color: context.dividerColor) : null,
+      ),
+      child: ExpansionTile(
+        title: Text(serviceFaq.title.validate(), style: primaryTextStyle(weight:FontWeight.bold,size: 12),),
+        tilePadding: EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          ListTile(
+            title: Text(serviceFaq.description.validate(), style: secondaryTextStyle(),),
+            contentPadding: EdgeInsets.only(left: 32),
+          ),
+        ],
+      ),
     );
   }
 }

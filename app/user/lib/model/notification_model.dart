@@ -59,14 +59,18 @@ class NotificationInnerData {
   String? type;
   String? subject;
   String? message;
+  String? notificationType;
+  String? checkBookingType;
 
-  NotificationInnerData({this.id, this.type, this.subject, this.message});
+  NotificationInnerData({this.id, this.type, this.checkBookingType, this.subject, this.message, this.notificationType});
 
   NotificationInnerData.fromJson(Map<String, dynamic> json) {
     id = json['id'];
     type = json['type'];
     subject = json['subject'];
     message = json['message'];
+    notificationType = json['notification-type'];
+    checkBookingType = json['check_booking_type'];
   }
 
   Map<String, dynamic> toJson() {
@@ -75,6 +79,8 @@ class NotificationInnerData {
     data['type'] = this.type;
     data['subject'] = this.subject;
     data['message'] = this.message;
+    data['notification-type'] = this.notificationType;
+    data['check_booking_type'] = this.checkBookingType;
     return data;
   }
 }

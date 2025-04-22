@@ -1,11 +1,13 @@
-import 'package:actcms_spa_flutter/locale/languages_vi.dart';
-import 'package:actcms_spa_flutter/locale/language_en.dart';
-import 'package:actcms_spa_flutter/locale/languages.dart';
+import 'package:giup_viec_nha_app_user_flutter/locale/language_ar.dart';
+import 'package:giup_viec_nha_app_user_flutter/locale/language_vi.dart';
+import 'package:giup_viec_nha_app_user_flutter/locale/language_en.dart';
+import 'package:giup_viec_nha_app_user_flutter/locale/language_hi.dart';
+import 'package:giup_viec_nha_app_user_flutter/locale/languages.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
-import 'language_en.dart';
-import 'languages_vi.dart';
+import 'languages_de.dart';
+import 'languages_fr.dart';
 
 class AppLocalizations extends LocalizationsDelegate<BaseLanguage> {
   const AppLocalizations();
@@ -17,7 +19,7 @@ class AppLocalizations extends LocalizationsDelegate<BaseLanguage> {
         return LanguageVi();
       case 'en':
         return LanguageEn();
-
+        
       default:
         return LanguageVi();
     }

@@ -1,18 +1,21 @@
-import 'package:actcms_spa_flutter/component/back_widget.dart';
-import 'package:actcms_spa_flutter/component/base_scaffold_body.dart';
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/network/rest_apis.dart';
-import 'package:actcms_spa_flutter/screens/auth/sign_up_screen.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/dashboard_screen.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/common.dart';
-import 'package:actcms_spa_flutter/utils/constant.dart';
-import 'package:actcms_spa_flutter/utils/model_keys.dart';
-import 'package:country_code_picker/country_code_picker.dart';
+import 'dart:convert';
+
+import 'package:giup_viec_nha_app_user_flutter/component/back_widget.dart';
+import 'package:giup_viec_nha_app_user_flutter/component/base_scaffold_body.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/auth/sign_up_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/common.dart';
+import 'package:country_picker/country_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nb_utils/nb_utils.dart';
+
+import '../../network/rest_apis.dart';
+import '../../utils/configs.dart';
+import '../../utils/constant.dart';
+import '../dashboard/dashboard_screen.dart';
 
 class OTPLoginScreen extends StatefulWidget {
   const OTPLoginScreen({Key? key}) : super(key: key);
@@ -25,11 +28,14 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
   TextEditingController numberController = TextEditingController();
+  FocusNode _mobileNumberFocus = FocusNode();
 
-  String countryCode = '';
-  String phoneNumber = '';
-  String verificationId = '';
+  Country selectedCountry = defaultCountry();
+
   String otpCode = '';
+  String verificationId = '';
+
+  ValueNotifier _valueNotifier = ValueNotifier(true);
 
   bool isCodeSent = false;
 
@@ -44,187 +50,238 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
   }
 
   //region Methods
-  Future<void> otpLogin() async {
-    var request = {
-      UserKeys.userName: phoneNumber.replaceAll('+', ''),
-      UserKeys.password: phoneNumber.replaceAll('+', ''),
-      UserKeys.playerId: getStringAsync(PLAYERID),
-      UserKeys.loginType: LOGIN_TYPE_OTP,
-    };
-
-    appStore.setLoading(true);
-    await loginUser(request, isSocialLogin: true).then((res) async {
-      res.data!.password = phoneNumber.validate();
-
-      await userService.getUser(email: res.data!.email).then((value) {
-        res.data!.uid = value.uid;
-
-        if (res.data!.userType == LOGIN_TYPE_USER) {
-          if (res.data != null) saveUserData(res.data!);
-
-          toast(language.loginSuccessfully);
-
-          DashboardScreen().launch(context, isNewTask: true, pageRouteAnimation: PageRouteAnimation.Fade);
-        } else {
-          toast(language.lblOnlyUserCanLoggedInHere);
-        }
-      }).catchError((e) {
-        if (e.toString() == USER_NOT_FOUND) {
-          authService.registerUserWhenUserNotFound(context, res, phoneNumber.validate());
-        } else {
-          toast(e.toString());
-        }
-      });
-    }).catchError((e) {
-      toast(e.toString());
-    });
-
-    appStore.setLoading(false);
-  }
-
-  Future<void> submit() async {
-    appStore.setLoading(true);
-
-    log('A $verificationId $otpCode');
-    PhoneAuthCredential credential = PhoneAuthProvider.credential(verificationId: verificationId, smsCode: otpCode);
-
-    // Sign the user in (or link) with the credential
-    await FirebaseAuth.instance.signInWithCredential(credential).then((value) async {
-      Map req = {
-        "email": '',
-        "username": phoneNumber.replaceAll('+', ''),
-        "first_name": '',
-        "last_name": '',
-        "login_type": LOGIN_TYPE_OTP,
-        "user_type": USER_TYPE_USER,
-        "accessToken": phoneNumber.replaceAll('+', ''),
-      };
-
-      await loginUser(req, isSocialLogin: true).then((value) async {
-        appStore.setLoginType(LOGIN_TYPE_OTP);
-
-        if (value.isUserExist == null) {
-          /// Registered
-          otpLogin();
-        } else {
-          /// Not registered
-          finish(context);
-
-          SignUpScreen(
-            phoneNumber: phoneNumber.replaceAll('+', ''),
-            otpCode: otpCode.validate(),
-            verificationId: verificationId,
-            isOTPLogin: true,
-          ).launch(context);
-        }
-      }).catchError((e) {
-        log('loginUser $e');
-        if (e.toString().contains('invalid_username')) {
-          finish(context);
-          SignUpScreen(
-            phoneNumber: phoneNumber.replaceAll('+', ''),
-            otpCode: otpCode.validate(),
-            verificationId: verificationId,
-            isOTPLogin: true,
-          ).launch(context);
-        } else if (e.toString() == USER_NOT_FOUND) {
-          //authService.registerUserWhenUserNotFound(context, value, passwordCont.text.trim());
-        } else {
-          toast(e.toString(), print: true);
-        }
-      });
-    }).catchError((e) {
-      log('signInWithCredential $e');
-      if (e.toString().contains('invalid-verification-code')) {
-        toast('Invalid Verification Code', print: true);
-      } else {
-        toast(e.toString());
-      }
-    });
-
-    appStore.setLoading(false);
+  Future<void> changeCountry() async {
+    showCountryPicker(
+      context: context,
+      countryListTheme: CountryListThemeData(
+        textStyle: secondaryTextStyle(color: textSecondaryColorGlobal),
+        searchTextStyle: primaryTextStyle(),
+        inputDecoration: InputDecoration(
+          labelText: language.search,
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(
+            borderSide: BorderSide(
+              color: const Color(0xFF8C98A8).withValues(alpha:0.2),
+            ),
+          ),
+        ),
+      ),
+      showPhoneCode: true, // optional. Shows phone code before the country name.
+      onSelect: (Country country) {
+        selectedCountry = country;
+        log(jsonEncode(selectedCountry.toJson()));
+        setState(() {});
+      },
+    );
   }
 
   Future<void> sendOTP() async {
     if (formKey.currentState!.validate()) {
       formKey.currentState!.save();
-
       hideKeyboard(context);
 
-      String number = '+$countryCode${numberController.text.trim()}';
-
-      if (!number.startsWith('+')) {
-        number = '+$countryCode${numberController.text.trim()}';
-      }
-      phoneNumber = number;
       appStore.setLoading(true);
 
-      toast('Sending OTP');
+      toast(language.sendingOTP);
 
-      await authService.loginWithOTP(number, onVerificationIdReceived: (value) {
-        if (appStore.isLoading && value.isNotEmpty) {
-          verificationId = value;
-          isCodeSent = true;
+      try {
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: "+${selectedCountry.phoneCode}${numberController.text.trim()}",
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            toast(language.verified);
 
-          setState(() {});
+            if (isAndroid) {
+              await FirebaseAuth.instance.signInWithCredential(credential);
+            }
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            appStore.setLoading(false);
+            if (e.code == 'invalid-phone-number') {
+              toast(language.theEnteredCodeIsInvalidPleaseTryAgain, print: true);
+            } else {
+              toast(e.toString(), print: true);
+            }
+          },
+          codeSent: (String _verificationId, int? resendToken) async {
+            toast(language.otpCodeIsSentToYourMobileNumber);
 
-          toast('OTP Sent');
-        }
+            appStore.setLoading(false);
+
+            verificationId = _verificationId;
+
+            if (verificationId.isNotEmpty) {
+              isCodeSent = true;
+              setState(() {});
+            } else {
+              //Handle
+            }
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {
+            FirebaseAuth.instance.signOut();
+            isCodeSent = false;
+            setState(() {});
+          },
+        );
+      } on Exception catch (e) {
+        log(e);
         appStore.setLoading(false);
-      }, onVerificationError: (s) {
-        toast(s);
-        appStore.setLoading(false);
-      }).then((value) {
-        //
-      }).catchError((e) {
-        appStore.setLoading(false);
+
         toast(e.toString(), print: true);
-      });
+      }
     }
   }
 
-  //endregion
+  Future<void> submitOtp() async {
+    log(otpCode);
+    if (otpCode.validate().isNotEmpty) {
+      if (otpCode.validate().length >= OTP_TEXT_FIELD_LENGTH) {
+        hideKeyboard(context);
+        appStore.setLoading(true);
+
+        try {
+          PhoneAuthCredential credential = PhoneAuthProvider.credential(verificationId: verificationId, smsCode: otpCode);
+          UserCredential credentials = await FirebaseAuth.instance.signInWithCredential(credential);
+
+          Map<String, dynamic> request = {
+            'username': numberController.text.trim(),
+            'password': numberController.text.trim(),
+            'login_type': LOGIN_TYPE_OTP,
+            "uid": credentials.user!.uid.validate(),
+          };
+
+          try {
+            await loginUser(request, isSocialLogin: true).then((loginResponse) async {
+              if (loginResponse.isUserExist.validate(value: true)) {
+                await saveUserData(loginResponse.userData!);
+                await appStore.setLoginType(LOGIN_TYPE_OTP);
+                DashboardScreen().launch(context, isNewTask: true, pageRouteAnimation: PageRouteAnimation.Fade);
+              } else {
+                appStore.setLoading(false);
+                finish(context);
+
+                SignUpScreen(
+                  isOTPLogin: true,
+                  phoneNumber: numberController.text.trim(),
+                  countryCode: selectedCountry.countryCode,
+                  uid: credentials.user!.uid.validate(),
+                  tokenForOTPCredentials: credential.token,
+                ).launch(context);
+              }
+            }).catchError((e) {
+              finish(context);
+              toast(e.toString());
+              appStore.setLoading(false);
+            });
+          } catch (e) {
+            appStore.setLoading(false);
+            toast(e.toString(), print: true);
+          }
+        } on FirebaseAuthException catch (e) {
+          appStore.setLoading(false);
+          if (e.code.toString() == 'invalid-verification-code') {
+            toast(language.theEnteredCodeIsInvalidPleaseTryAgain, print: true);
+          } else {
+            toast(e.message.toString(), print: true);
+          }
+        } on Exception catch (e) {
+          appStore.setLoading(false);
+          toast(e.toString(), print: true);
+        }
+      } else {
+        toast(language.pleaseEnterValidOTP);
+      }
+    } else {
+      toast(language.pleaseEnterValidOTP);
+    }
+  }
+
+  // endregion
 
   Widget _buildMainWidget() {
-    if (!isCodeSent) {
+    if (isCodeSent) {
+      return Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            32.height,
+            OTPTextField(
+              pinLength: OTP_TEXT_FIELD_LENGTH,
+              textStyle: primaryTextStyle(),
+              decoration: inputDecoration(context).copyWith(
+                counter: Offstage(),
+              ),
+              onChanged: (s) {
+                otpCode = s;
+                log(otpCode);
+              },
+              onCompleted: (pin) {
+                otpCode = pin;
+                submitOtp();
+              },
+            ).fit(),
+            30.height,
+            AppButton(
+              onTap: () {
+                submitOtp();
+              },
+              text: language.confirm,
+              color: primaryColor,
+              textColor: Colors.white,
+              width: context.width(),
+            ),
+          ],
+        ),
+      );
+    } else {
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(language.lblenterPhnNumber, style: boldTextStyle()),
-          16.height,
-          Container(
+          Form(
+            key: formKey,
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                CountryCodePicker(
-                  initialSelection: '+84',
-                  showCountryOnly: false,
-                  showFlag: true,
-                  showFlagDialog: true,
-                  showOnlyCountryWhenClosed: false,
-                  alignLeft: false,
-                  dialogBackgroundColor: context.cardColor,
-                  textStyle: primaryTextStyle(size: 18),
-                  onInit: (c) {
-                    countryCode = c!.dialCode.validate();
+                // Country code ...
+                Container(
+                  height: 48.0,
+                  decoration: BoxDecoration(
+                    color: context.cardColor,
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  child: Center(
+                    child: ValueListenableBuilder(
+                      valueListenable: _valueNotifier,
+                      builder: (context, value, child) => Row(
+                        children: [
+                          Text(
+                            "+${selectedCountry.phoneCode}",
+                            style: primaryTextStyle(size: 12),
+                          ),
+                          Icon(
+                            Icons.arrow_drop_down,
+                            color: primaryColor,
+                          )
+                        ],
+                      ).paddingOnly(left: 8),
+                    ),
+                  ),
+                ).onTap(() => changeCountry()).fit(fit: BoxFit.cover),
+                10.width,
+                // Mobile number text field...
+                AppTextField(
+                  controller: numberController,
+                  focus: _mobileNumberFocus,
+                  textFieldType: TextFieldType.PHONE,
+                  decoration: inputDecoration(context).copyWith(
+                    hintText: '${language.lblExample}: ${selectedCountry.example}',
+                    hintStyle: secondaryTextStyle(),
+                  ),
+                  autoFocus: true,
+                  onFieldSubmitted: (s) {
+                    sendOTP();
                   },
-                  onChanged: (c) {
-                    countryCode = c.dialCode.validate();
-                  },
-                ),
-                2.width,
-                Form(
-                  key: formKey,
-                  child: AppTextField(
-                    controller: numberController,
-                    textFieldType: TextFieldType.PHONE,
-                    decoration: inputDecoration(context),
-                    autoFocus: true,
-                    onFieldSubmitted: (s) {
-                      sendOTP();
-                    },
-                  ).expand(),
-                ),
+                ).expand(),
               ],
             ),
           ),
@@ -235,35 +292,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
             },
             text: language.btnSendOtp,
             color: primaryColor,
-            textStyle: boldTextStyle(color: white),
-            width: context.width(),
-          )
-        ],
-      );
-    } else {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(language.enterOtp, style: boldTextStyle()),
-          30.height,
-          OTPTextField(
-            pinLength: 6,
-            onChanged: (s) {
-              otpCode = s;
-            },
-            onCompleted: (pin) {
-              otpCode = pin;
-              submit();
-            },
-          ).fit(),
-          30.height,
-          AppButton(
-            onTap: () {
-              submit();
-            },
-            text: language.confirm,
-            color: primaryColor,
-            textStyle: boldTextStyle(color: white),
+            textColor: Colors.white,
             width: context.width(),
           ),
         ],
@@ -278,18 +307,22 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: context.scaffoldBackgroundColor,
-        leading: Navigator.of(context).canPop() ? BackWidget(iconColor: context.iconColor) : null,
-        scrolledUnderElevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle(statusBarIconBrightness: appStore.isDarkMode ? Brightness.light : Brightness.dark, statusBarColor: context.scaffoldBackgroundColor),
-      ),
-      body: Body(
-        child: Container(
-          padding: EdgeInsets.all(16),
-          child: _buildMainWidget(),
+    return GestureDetector(
+      onTap: () => hideKeyboard(context),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(isCodeSent ? language.confirmOTP : language.lblEnterPhnNumber, style: boldTextStyle(size: APP_BAR_TEXT_SIZE)),
+          elevation: 0,
+          backgroundColor: context.scaffoldBackgroundColor,
+          leading: Navigator.of(context).canPop() ? BackWidget(iconColor: context.iconColor) : null,
+          scrolledUnderElevation: 0,
+          systemOverlayStyle: SystemUiOverlayStyle(statusBarIconBrightness: appStore.isDarkMode ? Brightness.light : Brightness.dark, statusBarColor: context.scaffoldBackgroundColor),
+        ),
+        body: Body(
+          child: Container(
+            padding: EdgeInsets.all(16),
+            child: _buildMainWidget(),
+          ),
         ),
       ),
     );

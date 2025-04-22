@@ -1,5 +1,5 @@
-import 'package:actcms_spa_flutter/model/service_data_model.dart';
-import 'package:actcms_spa_flutter/model/user_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/service_data_model.dart';
+import 'package:giup_viec_nha_app_user_flutter/model/user_data_model.dart';
 
 class ServiceDetailResponse {
   List<CouponData>? couponData;
@@ -7,10 +7,20 @@ class ServiceDetailResponse {
   List<RatingData>? ratingData;
   ServiceData? serviceDetail;
   List<TaxData>? taxes;
-  List<ServiceData>? realtedService;
+  List<ServiceData>? relatedService;
   List<ServiceFaq>? serviceFaq;
+  List<Serviceaddon>? serviceaddon;
 
-  ServiceDetailResponse({this.couponData, this.provider, this.ratingData, this.serviceDetail, this.taxes, this.realtedService, this.serviceFaq});
+  ServiceDetailResponse({
+    this.couponData,
+    this.provider,
+    this.ratingData,
+    this.serviceDetail,
+    this.taxes,
+    this.relatedService,
+    this.serviceFaq,
+    this.serviceaddon,
+  });
 
   factory ServiceDetailResponse.fromJson(Map<String, dynamic> json) {
     return ServiceDetailResponse(
@@ -19,8 +29,9 @@ class ServiceDetailResponse {
       ratingData: json['rating_data'] != null ? (json['rating_data'] as List).map((i) => RatingData.fromJson(i)).toList() : null,
       serviceDetail: json['service_detail'] != null ? ServiceData.fromJson(json['service_detail']) : null,
       taxes: json['taxes'] != null ? (json['taxes'] as List).map((i) => TaxData.fromJson(i)).toList() : null,
-      realtedService: json['related_service'] != null ? (json['related_service'] as List).map((i) => ServiceData.fromJson(i)).toList() : null,
+      relatedService: json['related_service'] != null ? (json['related_service'] as List).map((i) => ServiceData.fromJson(i)).toList() : null,
       serviceFaq: json['service_faq'] != null ? (json['service_faq'] as List).map((i) => ServiceFaq.fromJson(i)).toList() : null,
+      serviceaddon: json['serviceaddon'] != null ? (json['serviceaddon'] as List).map((i) => Serviceaddon.fromJson(i)).toList() : null,
     );
   }
 
@@ -41,11 +52,14 @@ class ServiceDetailResponse {
     if (this.taxes != null) {
       data['taxes'] = this.taxes!.map((v) => v.toJson()).toList();
     }
-    if (this.realtedService != null) {
-      data['related_service'] = this.realtedService!.map((v) => v.toJson()).toList();
+    if (this.relatedService != null) {
+      data['related_service'] = this.relatedService!.map((v) => v.toJson()).toList();
     }
     if (this.serviceFaq != null) {
       data['service_faq'] = this.serviceFaq!.map((v) => v.toJson()).toList();
+    }
+    if (this.serviceaddon != null) {
+      data['serviceaddon'] = this.serviceaddon!.map((v) => v.toJson()).toList();
     }
     return data;
   }
@@ -56,7 +70,7 @@ class TaxData {
   int? providerId;
   String? title;
   String? type;
-  int? value;
+  num? value;
   num? totalCalculatedValue;
 
   TaxData({this.id, this.providerId, this.title, this.type, this.value, this.totalCalculatedValue});
@@ -89,8 +103,9 @@ class CouponData {
   String? expireDate;
   int? id;
   int? status;
+  bool isApplied;
 
-  CouponData({this.code, this.discount, this.discountType, this.expireDate, this.id, this.status});
+  CouponData({this.code, this.discount, this.discountType, this.expireDate, this.id, this.status, this.isApplied = false});
 
   factory CouponData.fromJson(Map<String, dynamic> json) {
     return CouponData(
@@ -132,6 +147,7 @@ class RatingData {
   String? customerName;
   String? customerProfileImage;
   String? serviceName;
+  List<String>? attachments;
 
   RatingData({
     this.bookingId,
@@ -149,6 +165,7 @@ class RatingData {
     this.customerName,
     this.customerProfileImage,
     this.serviceName,
+    this.attachments,
   });
 
   factory RatingData.fromJson(Map<String, dynamic> json) {
@@ -168,6 +185,7 @@ class RatingData {
       customerName: json['customer_name'],
       customerProfileImage: json['customer_profile_image'],
       serviceName: json['service_name'],
+      attachments: json['attchments'] != null ? List<String>.from(json['attchments']) : null,
     );
   }
 
@@ -188,6 +206,9 @@ class RatingData {
     data['customer_name'] = this.customerName;
     data['customer_profile_image'] = this.customerProfileImage;
     data['service_name'] = this.serviceName;
+    if (this.attachments != null) {
+      data['attchments'] = this.attachments;
+    }
     return data;
   }
 }
@@ -225,5 +246,58 @@ class ServiceFaq {
     data['title'] = this.title;
     data['updated_at'] = this.updatedAt;
     return data;
+  }
+}
+
+class Serviceaddon {
+  int id;
+  String name;
+  String serviceAddonImage;
+  int serviceId;
+  num price;
+  int status;
+  String deletedAt;
+  String createdAt;
+  String updatedAt;
+  bool isSelected = false;
+
+  Serviceaddon({
+    this.id = -1,
+    this.name = "",
+    this.serviceAddonImage = "",
+    this.serviceId = -1,
+    this.price = 0,
+    this.status = -1,
+    this.deletedAt = "",
+    this.createdAt = "",
+    this.updatedAt = "",
+  });
+
+  factory Serviceaddon.fromJson(Map<String, dynamic> json) {
+    return Serviceaddon(
+      id: json['id'] is int ? json['id'] : -1,
+      name: json['name'] is String ? json['name'] : "",
+      serviceAddonImage: json['serviceaddon_image'] is String ? json['serviceaddon_image'] : "",
+      serviceId: json['service_id'] is int ? json['service_id'] : -1,
+      price: json['price'] is num ? json['price'] : 0,
+      status: json['status'] is int ? json['status'] : -1,
+      deletedAt: json['deleted_at'] is String ? json['created_at'] : "",
+      createdAt: json['created_at'] is String ? json['created_at'] : "",
+      updatedAt: json['updated_at'] is String ? json['updated_at'] : "",
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'serviceaddon_image': serviceAddonImage,
+      'service_id': serviceId,
+      'price': price,
+      'status': status,
+      'deleted_at': deletedAt,
+      'created_at': createdAt,
+      'updated_at': updatedAt,
+    };
   }
 }

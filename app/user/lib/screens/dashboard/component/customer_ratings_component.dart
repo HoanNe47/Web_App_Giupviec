@@ -1,18 +1,13 @@
-import 'package:actcms_spa_flutter/main.dart';
-import 'package:actcms_spa_flutter/model/dashboard_model.dart';
-import 'package:actcms_spa_flutter/screens/auth/sign_in_screen.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/customer_rating_screen.dart';
-import 'package:actcms_spa_flutter/screens/dashboard/dashboard_screen.dart';
-import 'package:actcms_spa_flutter/utils/colors.dart';
-import 'package:actcms_spa_flutter/utils/images.dart';
+import 'package:giup_viec_nha_app_user_flutter/main.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/auth/sign_in_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/customer_rating_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/screens/dashboard/dashboard_screen.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/colors.dart';
+import 'package:giup_viec_nha_app_user_flutter/utils/images.dart';
 import 'package:flutter/material.dart';
 import 'package:nb_utils/nb_utils.dart';
 
 class CustomerRatingsComponent extends StatelessWidget {
-  final List<DashboardCustomerReview> reviewData;
-
-  CustomerRatingsComponent({required this.reviewData});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -25,14 +20,14 @@ class CustomerRatingsComponent extends StatelessWidget {
         children: [
           Image.asset(ic_customer_rating_stars),
           26.height,
-          Text(language.lblIntroducingCustomerRating, style: primaryTextStyle(size: 20, color: Colors.white)),
+          Text(language.lblIntroducingCustomerRating, style: primaryTextStyle(size: 18, color: Colors.white)),
           16.height,
           AppButton(
             text: language.lblSeeYourRatings,
             textStyle: primaryTextStyle(color: appStore.isDarkMode ? textPrimaryColorGlobal : primaryColor),
             onTap: () {
               if (appStore.isLoggedIn) {
-                CustomerRatingScreen(reviewData: reviewData).launch(context);
+                CustomerRatingScreen().launch(context);
               } else {
                 setStatusBarColor(Colors.white, statusBarIconBrightness: Brightness.dark);
 
